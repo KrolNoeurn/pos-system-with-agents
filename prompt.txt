@@ -1,0 +1,242 @@
+I want to establish a professional workspace-level Agent Skills system for this POS project.
+
+## Project Stack
+- Frontend: React + Vite
+- UI: Bootstrap 5
+- Backend: Django + Django REST Framework
+- Database: SQLite
+- Authentication: JWT
+- Authorization: Role-Based Access Control (RBAC)
+- Frontend routing: React Router
+- API communication: Axios
+- Languages: English and Khmer
+- Layouts: Vertical and Horizontal
+
+## Objective
+
+Create a complete, reusable, professional workspace skills system inside this project.
+
+Use the current Antigravity workspace skill convention.
+
+The workspace skills directory must be:
+
+`.agents/skills/`
+
+Do not use the legacy `.agent/skills/` directory unless there is a specific compatibility reason.
+
+## Create These Skills
+
+### 1. pos-architect
+
+Path:
+`.agents/skills/pos-architect/SKILL.md`
+
+Responsibilities:
+- System architecture.
+- Technology decisions.
+- Module boundaries.
+- Database design.
+- API architecture.
+- Feature planning.
+- Architecture reviews.
+- Maintainability.
+- Future scalability.
+
+### 2. django-backend
+
+Path:
+`.agents/skills/django-backend/SKILL.md`
+
+Responsibilities:
+- Django.
+- Django REST Framework.
+- Models.
+- Serializers.
+- Views.
+- Services.
+- API design.
+- Database migrations.
+- Business logic.
+- Backend validation.
+- Testing.
+
+### 3. react-frontend
+
+Path:
+`.agents/skills/react-frontend/SKILL.md`
+
+Responsibilities:
+- React.
+- Vite.
+- Bootstrap.
+- React Router.
+- Axios.
+- Context API.
+- Component architecture.
+- Forms.
+- Frontend API integration.
+- State management.
+- Responsive UI.
+
+### 4. ui-ux-design
+
+Path:
+`.agents/skills/ui-ux-design/SKILL.md`
+
+Responsibilities:
+- POS UI/UX.
+- Dashboard.
+- Vertical layout.
+- Horizontal layout.
+- Responsive design.
+- Light and dark themes.
+- Khmer font support.
+- Accessibility.
+- Design consistency.
+- Cashier usability.
+
+### 5. security-rbac
+
+Path:
+`.agents/skills/security-rbac/SKILL.md`
+
+Responsibilities:
+- Authentication.
+- User management.
+- Role management.
+- Permission management.
+- Backend authorization.
+- Protected APIs.
+- Protected routes.
+- Privilege escalation prevention.
+- Audit logs.
+- Security review.
+
+### 6. testing-qa
+
+Path:
+`.agents/skills/testing-qa/SKILL.md`
+
+Responsibilities:
+- Backend testing.
+- Frontend testing.
+- API testing.
+- Integration testing.
+- Security testing.
+- POS transaction testing.
+- Financial calculation testing.
+- Regression testing.
+- QA reporting.
+
+### 7. project-workflow
+
+Path:
+`.agents/skills/project-workflow/SKILL.md`
+
+Responsibilities:
+- Inspect.
+- Analyze.
+- Plan.
+- Implement.
+- Test.
+- Review.
+- Document.
+- Report.
+
+## Skill File Requirements
+
+Each SKILL.md must:
+
+1. Begin with valid YAML frontmatter.
+2. Include a unique lowercase skill name.
+3. Include a detailed, clear description.
+4. Explain the skill's role.
+5. Define its responsibilities.
+6. Define technical standards.
+7. Define its workflow.
+8. Include quality requirements.
+9. Include relevant checklists.
+10. Explain when the skill should be used.
+
+Descriptions must be clear enough for Antigravity to identify when a skill is relevant automatically.
+
+Skills must be specialized and avoid unnecessary duplication.
+
+Use progressive disclosure. Keep each skill focused. If supporting references are required, create a `references/` directory inside the relevant skill rather than making the SKILL.md unnecessarily large.
+
+## Create Project Instructions
+
+Create or update the root `AGENTS.md` file.
+
+It must define:
+- Project objective.
+- Technology stack.
+- Architecture principles.
+- Security requirements.
+- Frontend conventions.
+- Backend conventions.
+- UI/UX rules.
+- Testing requirements.
+- Documentation requirements.
+- Development workflow.
+- Rules against fake functionality.
+- Rules against claiming unverified test results.
+
+The root AGENTS.md must be concise enough to serve as the primary workspace instruction file.
+
+## Create Documentation Structure
+
+Create:
+
+docs/
+    PROJECT_OVERVIEW.md
+    ARCHITECTURE.md
+    DATABASE_SCHEMA.md
+    API_DOCUMENTATION.md
+    RBAC_MATRIX.md
+    UI_DESIGN_GUIDELINES.md
+    ROADMAP.md
+    DEVELOPMENT_PROGRESS.md
+    DECISIONS.md
+
+Create initial templates and placeholders with meaningful content rather than empty files.
+
+## Quality Validation
+
+After creating the skills:
+
+1. Verify all seven skill folders exist.
+2. Verify each SKILL.md exists.
+3. Verify every YAML frontmatter is valid.
+4. Verify each skill name matches its folder.
+5. Verify all skill descriptions are meaningful.
+6. Verify instructions do not conflict with each other.
+7. Verify the skills are specialized.
+8. Verify AGENTS.md exists in the project root.
+9. Verify the documentation structure exists.
+10. Review the entire setup for consistency.
+
+## Execution Rules
+
+- Inspect the workspace before creating files.
+- Do not overwrite existing files without inspecting them.
+- Do not initialize React or Django yet.
+- Do not begin POS module development.
+- Do not install dependencies.
+- Do not generate unrelated files.
+- Focus exclusively on establishing the workspace instructions, skills, and documentation foundation.
+
+## Final Report
+
+After completion, provide:
+
+- Created directory structure.
+- Created skills.
+- Summary of each skill.
+- Root AGENTS.md summary.
+- Documentation files created.
+- Validation results.
+- Any missing or unresolved issues.
+- Instructions on how to invoke each skill manually in Antigravity.
+
+Stop after the workspace foundation is complete and wait for my approval to proceed to the next development phase.
