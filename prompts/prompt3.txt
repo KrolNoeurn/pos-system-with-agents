@@ -1,0 +1,83 @@
+# Phase 4 — POS UI Framework
+
+Follow the project architecture and UI/UX skills.
+
+## Objective
+
+Build the reusable UI framework for the POS system before creating business modules.
+
+## Required Layouts
+
+### Vertical
+- Left sidebar.
+- Top navbar.
+- Nested menu.
+- Collapsible sidebar.
+- Mini sidebar.
+- Breadcrumbs.
+- User menu.
+- Responsive navigation.
+
+### Horizontal
+- Top menu.
+- Dropdown menus.
+- Nested menu.
+- Logo.
+- User profile.
+- Responsive mobile navigation.
+
+## Requirements
+
+Both layouts must use shared page components.
+
+Implement:
+- Layout switching.
+- Light/dark theme.
+- Theme configuration.
+- Responsive behavior.
+- Centralized navigation.
+- Permission-aware menus.
+- User preferences.
+- Reusable page header.
+- Reusable cards.
+- Reusable tables.
+- Reusable forms.
+- Modal dialogs.
+- Toasts.
+- Confirmation dialogs.
+- Loading states.
+- Empty states.
+- Error states.
+
+## Design
+
+Create a consistent professional design system.
+
+Use:
+- Bootstrap 5.
+- Bootstrap Icons.
+- CSS variables.
+- Centralized theme configuration.
+- Consistent spacing.
+- Consistent typography.
+- Consistent component states.
+
+Avoid clutter and unnecessary visual effects.
+
+Ensure Khmer and English text can be displayed without breaking the layout.
+
+## Verification
+
+Verify:
+- Layout switching.
+- Responsive behavior.
+- Dark mode.
+- Light mode.
+- Sidebar collapse.
+- Navigation.
+- Permission-based menus.
+- Shared page behavior.
+
+Do not implement product or sales business logic yet.
+
+Update documentation and progress.

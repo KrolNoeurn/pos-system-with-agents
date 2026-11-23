@@ -1,0 +1,43 @@
+Implement the Products module.
+
+Features:
+- Product list.
+- Create product.
+- Edit product.
+- Product details.
+- Product image.
+- SKU.
+- Barcode.
+- Product name.
+- Description.
+- Category.
+- Unit.
+- Purchase cost.
+- Selling price.
+- Optional wholesale price field architecture.
+- Minimum stock threshold.
+- Active/inactive status.
+- Search.
+- Filter.
+- Sorting.
+- Pagination.
+
+Requirements:
+- Validate SKU uniqueness.
+- Validate barcode uniqueness when provided.
+- Validate monetary fields.
+- Use decimal for financial values.
+- Prevent deleting products used in historical transactions.
+- Support English and Khmer.
+- Integrate permissions.
+- Use real API data.
+- Reuse the existing design system.
+- Support vertical and horizontal layouts.
+
+Do not implement stock balance directly as an editable product field. Inventory balance must be controlled through the inventory movement system.
+
+Create backend, frontend, and automated tests.
+
+Update documentation and progress.
+
+Verify the implementation and report actual test results.

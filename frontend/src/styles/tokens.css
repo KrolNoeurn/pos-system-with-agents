@@ -1,0 +1,51 @@
+/* Centralized POS design tokens layered over Bootstrap 5 */
+:root {
+  --pos-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Khmer",
+    "Kantumruy Pro", sans-serif;
+  --pos-bg-body: #f8f9fa;
+  --pos-bg-surface: #ffffff;
+  --pos-border-subtle: #dee2e6;
+  --pos-text-primary: #212529;
+  --pos-text-muted: #6c757d;
+  --pos-topbar-height: 60px;
+}
+
+[data-bs-theme="dark"] {
+  --pos-bg-body: #12161c;
+  --pos-bg-surface: #1b222c;
+  --pos-border-subtle: #2c3645;
+  --pos-text-primary: #f1f5f9;
+  --pos-text-muted: #94a3b8;
+}
+
+body {
+  font-family: var(--pos-font-sans);
+  background-color: var(--pos-bg-body);
+  color: var(--pos-text-primary);
+  min-height: 100vh;
+}
+
+html[lang="km"] body {
+  line-height: 1.7;
+}
+
+.pos-app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pos-surface {
+  background-color: var(--pos-bg-surface);
+  border-color: var(--pos-border-subtle);
+}
+
+.pos-navbar {
+  min-height: var(--pos-topbar-height);
+  background-color: var(--pos-bg-surface);
+  border-bottom: 1px solid var(--pos-border-subtle);
+}
+
+.pos-tabular {
+  font-variant-numeric: tabular-nums;
+}

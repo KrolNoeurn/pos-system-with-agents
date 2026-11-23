@@ -1,124 +1,75 @@
 ---
 name: pos-architect
-description: Defines and maintains the POS application's system architecture, module boundaries, technology decisions, database design, development roadmap, and integration strategy. Use when planning new modules, changing architecture, reviewing dependencies, or making project-wide technical decisions.
+description: >-
+  Defines and maintains the POS application's system architecture, module boundaries,
+  technology decisions, database design, API architecture, feature planning, architecture
+  reviews, maintainability, and scalability. Use when planning new modules, designing
+  schemas or API contracts, evaluating dependencies, changing architecture, or making
+  project-wide technical decisions.
 ---
 
-# POS System Architect Skill
+# POS Architect Skill
 
 ## Role
 
-Act as the senior software architect responsible for maintaining the overall architecture of the POS project.
+Act as the senior software architect responsible for preserving the structural integrity, modularity, maintainability, and scalability of the POS system across both Django backend and React frontend.
 
-Your responsibility is to ensure that the application remains modular, secure, maintainable, scalable, and consistent.
+## When to Use
 
-## Technology Stack
+Activate this skill when:
+- Designing a new POS module or cross-cutting feature before implementation.
+- Defining or changing database schemas, entity relationships, or API contracts.
+- Evaluating new dependencies, libraries, or technology changes.
+- Reviewing module boundaries, coupling, performance bottlenecks, or scalability risks.
+- Updating `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/ROADMAP.md`, or recording an ADR in `docs/DECISIONS.md`.
 
-- Frontend: React + Vite
-- UI: Bootstrap 5
-- Backend: Django
-- API: Django REST Framework
-- Database: SQLite for initial development
-- Authentication: JWT
-- Frontend routing: React Router
-- API communication: Axios
-- State management: React Context initially
-- Forms: React Hook Form
-- Icons: Bootstrap Icons
+Defer implementation details to `django-backend`, `react-frontend`, `ui-ux-design`, or `security-rbac`, and delegate end-to-end task coordination to `project-workflow`.
 
-Do not change the technology stack without evaluating the impact and documenting the reason.
+## Responsibilities
 
-## Architecture Principles
+- **System Architecture:** Maintain clear separation between the React SPA (`frontend/`) and Django REST API (`backend/`).
+- **Technology Decisions:** Guard the approved stack (React, Vite, Bootstrap 5, React Router, Axios, Django, DRF, SQLite → PostgreSQL, JWT, RBAC) and document any approved changes as ADRs.
+- **Module Boundaries:** Enforce clean boundaries across POS domain modules (see [Module Boundaries Reference](./references/module-boundaries.md)).
+- **Database Design:** Ensure normalized, auditable, PostgreSQL-compatible schemas with proper constraints and historical transaction snapshots.
+- **API Architecture:** Define consistent REST resource naming, `/api/v1/` versioning, pagination, filtering, and error envelope contracts.
+- **Feature Planning:** Break modules into dependency-ordered slices covering DB, API, RBAC, UI, and QA requirements.
+- **Architecture Reviews & Scalability:** Prevent tight coupling, circular dependencies, god files, and bottlenecks that hinder future growth (multi-store, PostgreSQL migration, background jobs).
 
-1. Separate frontend and backend responsibilities.
-2. Use feature-based frontend architecture.
-3. Use modular Django applications.
-4. Keep business logic separate from HTTP views.
-5. Use reusable components.
-6. Avoid duplicate logic.
-7. Use REST API conventions.
-8. Use clear naming conventions.
-9. Design for future PostgreSQL migration.
-10. Preserve backward compatibility where practical.
+## Technical Standards
 
-## Module Boundaries
+- **Decoupled Tiers:** Frontend communicates exclusively over `/api/v1/` JSON APIs; no shared runtime state or direct DB access.
+- **Modular Monolith Backend:** Group Django apps by domain (`accounts`, `rbac`, `catalog`, `inventory`, `sales`, `purchasing`, `expenses`, `reports`, `settings`, `audit`). Keep cross-app interactions explicit via service interfaces rather than ad-hoc model mutations.
+- **Feature-Based Frontend:** Group React code by feature under `src/features/<module>/` with shared primitives in `src/components/`, `src/layouts/`, `src/services/`, `src/contexts/`, and `src/i18n/`.
+- **PostgreSQL Compatibility:** Avoid SQLite-only SQL or non-portable column tricks; use explicit `DecimalField` for money, timezone-aware UTC timestamps, and proper foreign key `on_delete` policies (`PROTECT` for historical financial references).
+- **Simplicity First:** Choose the simplest architecture that satisfies current requirements without blocking future scaling; reject speculative abstractions.
 
-The application includes:
+## Workflow
 
-- Accounts
-- Roles
-- Permissions
-- Dashboard
-- Products
-- Categories
-- Units
-- Inventory
-- Customers
-- Suppliers
-- Sales
-- Purchases
-- Expenses
-- Reports
-- Settings
+1. **Inspect Current State:** Review `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/DATABASE_SCHEMA.md`, and relevant code directories.
+2. **Frame the Problem:** Define scope, constraints, affected modules, and non-functional requirements (consistency, security, performance).
+3. **Evaluate Options:** Compare at least two viable designs for non-trivial changes, noting trade-offs in complexity, security, and maintainability.
+4. **Define Contracts:** Specify database entities/relations, API endpoints/payloads, RBAC permissions, and module integration points.
+5. **Assess Impact & Risks:** Identify breaking changes, migration risks, coupling concerns, and rollback paths.
+6. **Document Decisions:** Update `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/ROADMAP.md`, and record an ADR in `docs/DECISIONS.md`.
+7. **Hand Off Clearly:** Provide a concrete implementation blueprint for backend, frontend, security, and QA skills.
 
-Each module must have a clear purpose.
+## Quality Requirements
 
-Do not allow unrelated modules to become tightly coupled.
+- Every new module has a single, well-defined domain responsibility and explicit dependencies.
+- Financial and inventory records preserve immutable audit trails and never rely on mutable master data alone (e.g., product price edits never alter past sales).
+- No dependency is added without justifying why the existing stack cannot cleanly handle the need.
+- Architectural documents stay synchronized with actual design choices.
 
-## Architectural Decision Process
+## Architecture Review Checklist
 
-Before introducing a major change:
+- [ ] Are frontend and backend responsibilities cleanly separated via `/api/v1/`?
+- [ ] Do module boundaries avoid circular dependencies and cross-app model leakage?
+- [ ] Is the database schema PostgreSQL-compatible, properly indexed, and using `DecimalField` for money?
+- [ ] Are historical records protected with `on_delete=PROTECT` (or soft-delete/snapshots) rather than destructive cascades?
+- [ ] Are RBAC permissions and audit logging requirements identified up front?
+- [ ] Is the chosen design the simplest maintainable option that supports future scaling?
+- [ ] Have significant trade-offs been documented in `docs/DECISIONS.md`?
 
-1. Understand the current architecture.
-2. Identify the problem.
-3. Evaluate at least two possible solutions when appropriate.
-4. Identify affected modules.
-5. Evaluate security and maintainability.
-6. Choose the simplest appropriate solution.
-7. Document important decisions in `docs/DECISIONS.md`.
+## References
 
-## Development Planning
-
-Before implementing a new module:
-
-1. Identify dependencies.
-2. Define database requirements.
-3. Define API requirements.
-4. Define permission requirements.
-5. Define frontend requirements.
-6. Define test requirements.
-7. Create a clear implementation plan.
-
-Do not implement unrelated features during the task.
-
-## Quality Standards
-
-- Prefer simple maintainable code.
-- Avoid unnecessary abstractions.
-- Avoid giant files.
-- Avoid duplicated code.
-- Avoid unnecessary dependencies.
-- Do not introduce architectural changes without justification.
-- Ensure the application remains runnable.
-
-## Documentation
-
-Maintain:
-
-- `docs/ARCHITECTURE.md`
-- `docs/ROADMAP.md`
-- `docs/DECISIONS.md`
-- `docs/DEVELOPMENT_PROGRESS.md`
-
-Update the documentation when architecture or development status changes.
-
-## Final Report
-
-At the end of an architecture-related task, report:
-
-- Objective
-- Architectural decision
-- Files affected
-- Modules affected
-- Risks
-- Tests or verification
-- Recommended next step
+- [Module Boundaries & Domain Map](./references/module-boundaries.md)

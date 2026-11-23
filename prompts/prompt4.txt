@@ -1,0 +1,30 @@
+Implement the Categories module.
+
+Follow AGENTS.md and the relevant skills.
+
+Features:
+- Category list.
+- Create category.
+- Edit category.
+- Active/inactive status.
+- Search.
+- Pagination.
+- Validation.
+- Confirmation before deletion.
+- Protection against deleting categories that are in use.
+- Backend API.
+- Frontend UI.
+- Permission integration.
+- English and Khmer translations.
+
+Use real database data.
+
+Create tests for backend CRUD operations, validation, and permissions.
+
+Reuse the existing layouts, design system, API services, and form components.
+
+Do not modify unrelated modules.
+
+Update documentation and DEVELOPMENT_PROGRESS.md.
+
+Run the relevant tests and report actual results.

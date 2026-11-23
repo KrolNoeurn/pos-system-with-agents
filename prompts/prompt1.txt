@@ -1,0 +1,140 @@
+# Phase 2 — POS Project Initialization
+
+Use the existing project workspace and follow all root instructions in AGENTS.md and applicable skills inside .agents/skills/.
+
+Activate the pos-architect, project-workflow, django-backend, and react-frontend skills as appropriate.
+
+## Objective
+
+Initialize the POS development environment using:
+
+Frontend:
+- React
+- Vite
+- JavaScript
+- Bootstrap 5
+- Bootstrap Icons
+- React Router
+- Axios
+
+Backend:
+- Python
+- Django
+- Django REST Framework
+
+Database:
+- SQLite
+
+## Tasks
+
+### 1. Inspect the workspace
+- Inspect all existing project files.
+- Do not overwrite existing work.
+- Check the project instructions.
+- Confirm the planned structure.
+
+### 2. Initialize Frontend
+
+Create the React application using Vite.
+
+Configure:
+- Bootstrap 5
+- Bootstrap Icons
+- React Router
+- Axios
+- Environment configuration
+- Basic application entry point
+- Error handling foundation
+
+Create a clean modular frontend structure.
+
+### 3. Initialize Backend
+
+Create the Django project.
+
+Configure:
+- Django REST Framework
+- SQLite
+- CORS
+- Environment variables
+- API version structure
+- Base configuration
+- Modular Django apps structure
+
+### 4. API Foundation
+
+Create:
+- `/api/v1/health/`
+
+Return an appropriate JSON response indicating backend status.
+
+The health check should not require authentication.
+
+### 5. Frontend Foundation
+
+Create a minimal application shell.
+
+Requirements:
+- Professional page structure
+- Responsive design
+- Bootstrap configuration
+- Centralized API service
+- Environment-based API URL
+- Error handling foundation
+
+Do not implement business modules.
+
+### 6. Environment Configuration
+
+Create:
+- `.env.example`
+- Appropriate `.gitignore`
+- Development setup documentation
+
+Do not expose secrets.
+
+### 7. Verification
+
+Verify:
+- Frontend starts successfully.
+- Backend starts successfully.
+- Frontend can access the health API.
+- API returns valid JSON.
+- CORS is configured correctly.
+- Dependencies are installed.
+- The project structure follows the instructions.
+
+Run the actual commands and tests.
+
+## Restrictions
+
+- Do not build POS.
+- Do not build products.
+- Do not build inventory.
+- Do not build sales.
+- Do not build dashboard analytics.
+- Do not add fake data.
+- Do not generate unnecessary modules.
+- Do not skip verification.
+
+## Documentation
+
+Update:
+- `docs/ARCHITECTURE.md`
+- `docs/DEVELOPMENT_PROGRESS.md`
+- `README.md`
+
+## Completion Report
+
+Report:
+1. Files created.
+2. Dependencies installed.
+3. Frontend structure.
+4. Backend structure.
+5. Commands to run.
+6. API health-check result.
+7. Verification results.
+8. Known issues.
+9. Next recommended phase.
+
+Stop when the foundation is verified and wait for approval.

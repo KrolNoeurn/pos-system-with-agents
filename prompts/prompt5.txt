@@ -1,0 +1,29 @@
+Implement the Units module.
+
+Features:
+- Unit list.
+- Create unit.
+- Edit unit.
+- Unit name.
+- Abbreviation.
+- Unit type.
+- Active/inactive status.
+- Search.
+- Validation.
+- Pagination.
+- Permission integration.
+- English and Khmer translations.
+
+Prepare an extensible design for unit conversion, but do not implement complex conversion logic yet.
+
+Prevent deleting units that are used by products.
+
+Use real database data.
+
+Create backend API, frontend UI, and tests.
+
+Reuse existing architecture.
+
+Update documentation and progress.
+
+Verify the implementation before reporting completion.

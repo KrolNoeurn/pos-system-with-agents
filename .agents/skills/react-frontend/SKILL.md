@@ -1,149 +1,73 @@
 ---
 name: react-frontend
-description: Develops the POS React frontend using Vite, Bootstrap, React Router, Axios, Context API, reusable components, responsive layouts, forms, API integration, and frontend state management. Use when implementing or modifying frontend pages and components.
+description: >-
+  Develops and maintains the POS React frontend using Vite, Bootstrap 5, React Router,
+  Axios, React Context API, and React Hook Form. Covers component architecture, layouts,
+  forms, API integration, state management, permission-aware routing, i18n integration,
+  and responsive pages. Use when implementing, debugging, or refactoring React pages,
+  components, hooks, contexts, or frontend API services.
 ---
 
 # React Frontend Skill
 
 ## Role
 
-Act as a senior React frontend engineer.
+Act as a senior React frontend engineer responsible for building a modular, fast, maintainable, and responsive POS single-page application.
 
-Build a professional, maintainable POS frontend.
+## When to Use
 
-## Technology
+Activate this skill when:
+- Creating or modifying React pages, feature modules, or reusable UI components.
+- Configuring React Router routes, protected routes, or layout wrappers.
+- Building Axios API services, auth interceptors, or token refresh handling.
+- Managing application state via React Context API or custom hooks.
+- Implementing forms, client validation, server-error mapping, or loading/error states.
+- Integrating English/Khmer translations (`en`/`km`) and theme/layout persistence in React code.
 
-- React
-- Vite
-- Bootstrap 5
-- Bootstrap Icons
-- React Router
-- Axios
-- React Context API
-- React Hook Form
+Consult `ui-ux-design` for visual design system rules, POS checkout ergonomics, Khmer typography, and accessibility reviews, and `security-rbac` for permission mapping and access-control alignment.
 
-## Architecture
+## Responsibilities
 
-Use feature-based architecture.
+- **Feature Architecture:** Structure code cleanly by domain feature under `src/features/` while centralizing shared UI, layouts, hooks, contexts, services, routes, styles, and translations.
+- **Reusable Components:** Build composable Bootstrap 5 UI primitives (buttons, inputs, selects, modals, tables, pagination, cards, alerts, toasts, loaders, empty states, confirmation dialogs).
+- **API Integration:** Centralize HTTP calls through a configured Axios instance with environment-based base URLs, JWT attachment, refresh/expiry handling, and normalized error extraction.
+- **Routing & Guards:** Implement React Router layouts, authenticated route guards, permission-aware route guards, and Unauthorized (`403`) / Not Found (`404`) fallbacks.
+- **Shared Layouts:** Support switching between Vertical and Horizontal layouts while preserving the active route and sharing a single set of page components.
+- **Forms & State:** Manage form validation, submission locking, and server validation feedback cleanly with React Hook Form and React Context API.
 
-Separate:
+## Technical Standards
 
-- Pages.
-- Components.
-- Layouts.
-- Hooks.
-- Contexts.
-- API services.
-- Utilities.
-- Routes.
-- Styles.
-- Translations.
-
-Do not place the entire application in App.jsx.
-
-## Components
-
-Create reusable components for:
-
-- Buttons.
-- Inputs.
-- Selects.
-- Modals.
-- Tables.
-- Pagination.
-- Dropdowns.
-- Cards.
-- Alerts.
-- Toasts.
-- Loading indicators.
-- Empty states.
-- Confirmations.
-
-Avoid duplicated components with similar responsibilities.
-
-## API Integration
-
-- Use a centralized Axios instance.
-- Configure base API URLs using environment variables.
-- Use centralized authentication handling.
-- Handle loading, success, and error states.
-- Avoid direct API calls inside reusable UI components.
-- Handle expired authentication appropriately.
-- Do not expose secrets in frontend code.
-
-## Routing
-
-- Use React Router.
-- Implement protected routes.
-- Implement permission-aware routes.
-- Implement proper fallback pages.
-- Implement unauthorized and not-found pages.
-
-## Layouts
-
-Support:
-
-- Vertical layout.
-- Horizontal layout.
-
-Both layouts must use shared page components.
-
-Do not duplicate pages to support different layouts.
-
-Layout switching must preserve the active route where possible.
-
-## Responsive Design
-
-Support:
-
-- Desktop.
-- Laptop.
-- Tablet.
-- Mobile.
-
-Prioritize desktop POS usability while ensuring responsive administrative pages.
-
-## Forms
-
-Use React Hook Form where appropriate.
-
-Implement:
-
-- Required field validation.
-- Validation messages.
-- Loading states.
-- Submission handling.
-- Server-side error display.
-- Prevent accidental duplicate submission.
-
-## Permissions
-
-Frontend permissions improve usability but do not replace backend security.
-
-- Hide unauthorized navigation.
-- Hide unauthorized actions.
-- Protect pages.
-- Display access-denied states.
-
-## Code Quality
-
-- Prefer functional components.
-- Use custom hooks when useful.
-- Keep components focused.
-- Avoid excessive prop drilling.
-- Avoid giant components.
-- Avoid duplicated logic.
-- Do not introduce unnecessary dependencies.
+- **Functional React:** Use functional components and custom hooks; keep `App.jsx` strictly for root providers and router mounting.
+- **Zero Page Duplication:** Never create separate page files for Vertical vs. Horizontal layouts; layouts wrap `<Outlet />`.
+- **API Isolation:** Presentational UI components must never call Axios directly; isolate requests in `src/services/` or `src/features/<feature>/api.js` and consume them through feature hooks or page containers.
+- **Environment Configuration:** Read API base URLs from Vite env vars (`import.meta.env.VITE_API_BASE_URL`); never hardcode secrets or production tokens in frontend bundles.
+- **UX Security Alignment:** Hide unauthorized menu items and actions based on the authenticated user's permission set from the backend, while treating backend responses (`401`/`403`) as authoritative.
+- **Robust UI States:** Every async view must explicitly render loading, empty, error (with retry where safe), and populated states. Every mutation form must disable/lock submit buttons while in flight to prevent duplicate checkouts or double records.
+- **Clean State Boundaries:** Keep ephemeral UI state local, cross-feature auth/theme/layout/language state in dedicated Contexts, and avoid prop drilling beyond two levels.
 
 ## Workflow
 
-1. Inspect the existing frontend.
-2. Identify the feature and dependencies.
-3. Plan components and routes.
-4. Implement reusable UI.
-5. Connect to API services.
-6. Implement validation and error states.
-7. Test behavior.
-8. Check responsive design.
-9. Update documentation.
-10. Report the result.
+1. **Inspect Frontend:** Review existing directory structure, routes, contexts, reusable components, and API contracts in `docs/API_DOCUMENTATION.md`.
+2. **Plan Feature Slice:** Identify routes, required permissions, API service functions, page components, reusable subcomponents, and translation keys (`en` and `km`).
+3. **Implement API & State Layer:** Add or update service methods and hooks with normalized error handling.
+4. **Implement UI & Forms:** Compose pages from shared components, wire React Hook Form validation, and bind translation strings.
+5. **Wire Routes & Navigation:** Register routes with auth/permission guards and update shared navigation definitions used by both Vertical and Horizontal layouts.
+6. **Verify Behavior:** Test navigation, layout switching, language switching, light/dark themes, form validation, error states, and responsive viewports.
+7. **Report & Document:** Update progress docs if needed and report actual checks run.
+
+## Quality Requirements
+
+- No dead buttons, fake handlers, or hardcoded mock data presented as live backend functionality.
+- No console errors, unhandled promise rejections, or broken route transitions on layout/theme/language switch.
+- Components remain focused and readable (extract subcomponents or hooks when files grow complex).
+- All user-visible labels support both English and Khmer via translation keys rather than hardcoded strings.
+
+## Frontend Delivery Checklist
+
+- [ ] Are pages shared cleanly across both Vertical and Horizontal layouts without duplication?
+- [ ] Do all API calls go through the centralized Axios service layer?
+- [ ] Are loading, empty, validation, `401`/`403`, and network error states handled?
+- [ ] Are mutation/checkout buttons protected against accidental double submission?
+- [ ] Are routes and actions guarded consistently with backend RBAC permissions?
+- [ ] Are all user-facing strings wired for English and Khmer translations?
+- [ ] Has the feature been verified across desktop, tablet, and mobile breakpoints and Light/Dark themes?

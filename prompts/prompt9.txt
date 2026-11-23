@@ -1,0 +1,113 @@
+# POS Checkout and Sales Module
+
+Implement the core POS checkout and sales system.
+
+Follow:
+- AGENTS.md
+- pos-architect
+- django-backend
+- react-frontend
+- ui-ux-design
+- security-rbac
+- testing-qa
+
+## Objective
+
+Build a practical, fast, professional POS checkout interface.
+
+## Frontend
+
+Implement:
+
+- Product search.
+- Barcode input architecture.
+- Product grid.
+- Product categories.
+- Cart.
+- Quantity adjustment.
+- Remove items.
+- Customer selection.
+- Discount.
+- Tax.
+- Subtotal.
+- Total.
+- Payment amount.
+- Change calculation.
+- Payment methods.
+- Checkout confirmation.
+- Receipt printing.
+
+Optimize for keyboard and touchscreen operation.
+
+## Backend
+
+Implement:
+
+- Sales API.
+- Sale items.
+- Payment records.
+- Transaction validation.
+- Sales service.
+- Inventory integration.
+- Receipt data.
+- Sales history.
+- Sale details.
+
+## Transaction Integrity
+
+Checkout must be atomic.
+
+The system must:
+1. Validate products.
+2. Validate stock.
+3. Validate prices.
+4. Validate discounts.
+5. Calculate totals on the backend.
+6. Validate payment.
+7. Create sale records.
+8. Create sale item records.
+9. Record payment.
+10. Deduct stock using the inventory service.
+11. Commit the transaction.
+
+If an operation fails, do not leave partial sales records or incorrect inventory.
+
+Do not trust totals calculated only in React.
+
+## Security
+
+- Protect sales endpoints.
+- Validate cashier permissions.
+- Restrict discounts where appropriate.
+- Protect cancellation.
+- Protect refund operations.
+- Log important transaction actions.
+
+## Testing
+
+Test:
+- Adding products.
+- Quantity.
+- Cart calculations.
+- Discounts.
+- Taxes.
+- Payments.
+- Change.
+- Checkout.
+- Stock deduction.
+- Insufficient stock.
+- Unauthorized operations.
+- Failed transaction rollback.
+- Duplicate checkout prevention.
+
+## UI/UX
+
+The POS must be fast and easy to use.
+
+Minimize unnecessary page navigation.
+
+Support vertical and horizontal layouts where appropriate, but prioritize usability for the actual POS checkout screen.
+
+Implement the feature completely using real API and database data.
+
+Run tests and report verified results.

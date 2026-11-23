@@ -1,0 +1,60 @@
+Implement the Inventory Management module.
+
+Follow the architecture and security skills.
+
+## Features
+
+- Stock balance.
+- Stock in.
+- Stock out.
+- Opening stock.
+- Stock adjustment.
+- Inventory movement history.
+- Low-stock alerts.
+- Stock valuation architecture.
+- Search.
+- Filtering.
+- Inventory reports.
+
+## Important Architecture
+
+Inventory changes must be traceable.
+
+Do not allow arbitrary stock balance editing.
+
+Implement inventory movements with:
+- Product.
+- Movement type.
+- Quantity.
+- Reference.
+- Date/time.
+- User.
+- Notes.
+
+Stock balance must be calculated or maintained reliably from validated stock movements.
+
+Use database transactions where appropriate.
+
+Prevent negative stock according to the configured business rules.
+
+Protect stock adjustment operations with permissions.
+
+Create backend services for inventory operations.
+
+Do not allow the frontend to directly change inventory balance.
+
+## Testing
+
+Test:
+- Opening stock.
+- Stock increase.
+- Stock decrease.
+- Adjustments.
+- Negative stock prevention.
+- Movement history.
+- Unauthorized adjustments.
+- Concurrent transaction risks where applicable.
+
+Implement backend, frontend, documentation, and tests.
+
+Verify the results.

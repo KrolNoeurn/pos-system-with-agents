@@ -1,0 +1,97 @@
+# Phase 3 — Authentication and RBAC
+
+Follow AGENTS.md and the relevant workspace skills.
+
+Activate:
+- security-rbac
+- django-backend
+- react-frontend
+- testing-qa
+- project-workflow
+
+## Objective
+
+Implement a complete authentication and role-based access control system.
+
+## Backend
+
+Implement:
+- User management.
+- Authentication.
+- JWT.
+- User activation and deactivation.
+- User profile.
+- Role management.
+- Permission management.
+- Role-permission assignment.
+- User-role assignment.
+- Protected API endpoints.
+- Password change.
+
+Use a secure and maintainable authentication design.
+
+Define granular permissions using module and action identifiers.
+
+Examples:
+- users.view
+- users.create
+- users.edit
+- users.delete
+- products.view
+- products.create
+- products.edit
+- products.delete
+- sales.view
+- sales.create
+- sales.cancel
+- inventory.view
+- inventory.adjust
+- reports.view
+- reports.export
+- settings.view
+- settings.edit
+
+Backend authorization is mandatory.
+
+Prevent privilege escalation.
+
+Do not allow ordinary administrators to grant permissions beyond their authorized scope.
+
+Protect critical system accounts and system roles.
+
+## Frontend
+
+Create:
+- Login page.
+- Protected routes.
+- Authentication context.
+- User management page.
+- Role management page.
+- Permission assignment UI.
+- Unauthorized page.
+- Permission-aware navigation.
+
+Use a centralized authentication service.
+
+Handle authentication errors appropriately.
+
+## Testing
+
+Test:
+- Valid login.
+- Invalid login.
+- Inactive user.
+- Access without authentication.
+- Access without permission.
+- User role assignment.
+- Role permission assignment.
+- Unauthorized API calls.
+- Privilege escalation prevention.
+
+Do not begin Products or POS development.
+
+Update documentation and progress.
+
+Verify actual behavior before reporting completion.
+
+Stop after the authentication and RBAC foundation is complete.

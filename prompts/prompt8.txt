@@ -1,0 +1,35 @@
+Implement the Purchasing module.
+
+Features:
+- Supplier selection.
+- Purchase creation.
+- Purchase items.
+- Purchase quantity.
+- Purchase unit cost.
+- Subtotal.
+- Discount.
+- Total.
+- Purchase status.
+- Purchase history.
+- Purchase detail.
+- Goods receiving.
+
+Important rules:
+- Stock should not increase merely because a purchase draft is created.
+- Stock should increase only when goods are actually received.
+- Receiving must update inventory through the inventory service.
+- Use atomic transactions.
+- Preserve purchase history.
+- Validate quantities and prices.
+- Prevent duplicate receiving operations.
+- Protect purchase cancellation and receiving actions using permissions.
+
+Use real backend data.
+
+Reuse existing products, suppliers, units, inventory, API services, and UI components.
+
+Implement tests for purchase creation, receiving, inventory changes, validation, and permissions.
+
+Update documentation and progress.
+
+Verify all important behavior.
