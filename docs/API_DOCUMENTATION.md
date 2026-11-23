@@ -60,7 +60,7 @@
 ### Security Audit Logs (`/api/v1/audit-logs/`)
 | Method | Endpoint | Required Permission | Purpose |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/audit-logs/` | `audit.view` | Read-only paginated audit trail (`?action=`, `?target_type=`) |
+| `GET` | `/api/v1/audit-logs/` | `audit.view` | Read-only append-only paginated audit trail (`?search=`, `?action=`, `?target_type=`, `?actor=`, `?date_from=`, `?date_to=`) |
 
 ### Catalog — Categories (`/api/v1/categories/`)
 | Method | Endpoint | Required Permission | Purpose |
@@ -73,8 +73,96 @@
 | `POST` | `/api/v1/categories/{id}/activate/` | `products.edit` | Activate category |
 | `POST` | `/api/v1/categories/{id}/deactivate/` | `products.edit` | Deactivate category |
 
+### Catalog — Units (`/api/v1/units/`)
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/units/` | `products.view` | Paginated unit list (`?page=`, `?page_size=`, `?search=`, `?unit_type=`, `?is_active=true\|false`) |
+| `POST` | `/api/v1/units/` | `products.create` | Create unit (`name`, `abbreviation`, `unit_type`, optional `name_km`, `allow_decimal`, `base_unit`, `conversion_factor`, `is_active`) |
+| `GET` | `/api/v1/units/{id}/` | `products.view` | Retrieve unit detail (includes `base_unit_abbreviation`, `derived_count`, `is_in_use`) |
+| `PATCH` | `/api/v1/units/{id}/` | `products.edit` | Update unit (validates unique name/abbreviation, positive factor, matching `unit_type`, no cycles) |
+| `DELETE` | `/api/v1/units/{id}/` | `products.delete` | Delete unused unit (`204`); returns `409 Conflict` if referenced by derived units or products |
+| `POST` | `/api/v1/units/{id}/activate/` | `products.edit` | Activate unit |
+| `POST` | `/api/v1/units/{id}/deactivate/` | `products.edit` | Deactivate unit |
+
+### Catalog — Products (`/api/v1/products/`)
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/products/` | `products.view` | Paginated product list (`?page=`, `?page_size=`, `?search=`, `?category=`, `?unit=`, `?is_active=`, `?min_price=`, `?max_price=`, `?ordering=name\|-name\|selling_price\|-selling_price\|sku\|-created_at`) |
+| `POST` | `/api/v1/products/` | `products.create` | Create product (JSON or `multipart/form-data` with optional image upload; exact `Decimal` pricing; no editable stock field) |
+| `GET` | `/api/v1/products/{id}/` | `products.view` | Retrieve product detail (includes `category_name`, `unit_abbreviation`, `image_url`) |
+| `PATCH` | `/api/v1/products/{id}/` | `products.edit` (+ `products.edit_price` for price changes) | Update product details, optional image replacement/`remove_image=true`, and audited price edits |
+| `DELETE` | `/api/v1/products/{id}/` | `products.delete` | Delete unused product (`204`); returns `409 Conflict` if referenced in historical transactions (`ProtectedError`) |
+| `POST` | `/api/v1/products/{id}/activate/` | `products.edit` | Activate product |
+| `POST` | `/api/v1/products/{id}/deactivate/` | `products.edit` | Deactivate product |
+
+### Inventory Management (`/api/v1/inventory/`)
+> Balances and movement history are strictly read-only. All stock mutations pass through validated, atomic movement endpoints.
+
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/inventory/balances/` | `inventory.view` | Paginated tracked product balances, avg cost, valuation, status (`?search=`, `?category=`, `?stock_status=in_stock\|low_stock\|out_of_stock`, `?low_stock=true`) |
+| `GET` | `/api/v1/inventory/low-stock/` | `inventory.view` | Paginated low-stock & out-of-stock alerts with shortage quantities |
+| `GET` | `/api/v1/inventory/movements/` | `inventory.view` | Paginated immutable movement ledger (`?product=`, `?movement_type=`, `?search=`, `?date_from=`, `?date_to=`) |
+| `POST` | `/api/v1/inventory/opening-stock/` | `inventory.adjust` | Record one-time opening stock (`409` if movements already exist) |
+| `POST` | `/api/v1/inventory/stock-in/` | `inventory.adjust` | Record inbound stock receipt with moving-average valuation update |
+| `POST` | `/api/v1/inventory/stock-out/` | `inventory.adjust` | Record outbound stock deduction (blocks negative stock unless `INVENTORY_ALLOW_NEGATIVE_STOCK=True`) |
+| `POST` | `/api/v1/inventory/adjustments/` | `inventory.adjust` | Record signed stock adjustment (`direction`: `increase`\|`decrease`, mandatory `notes`) |
+| `GET` | `/api/v1/inventory/report/` | `inventory.view` or `reports.view` | Live inventory valuation report (totals, category valuation breakdown, movement summary by type) |
+
+### Suppliers & Purchasing (`/api/v1/suppliers/`, `/api/v1/purchases/`)
+> Purchase drafts never alter stock. Goods receiving atomically updates stock via `apps.inventory.services` and blocks duplicate receiving (`409 Conflict`).
+
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` / `POST` / `PATCH` | `/api/v1/suppliers/` | `suppliers.view` (or `purchases.view/create`) / `suppliers.create` / `suppliers.edit` | Manage supplier directory |
+| `GET` | `/api/v1/purchases/` | `purchases.view` | Paginated purchase history (`?search=`, `?supplier=`, `?status=draft\|ordered\|received\|cancelled`) |
+| `POST` | `/api/v1/purchases/` | `purchases.create` | Create Draft/Ordered purchase with server-side `Decimal` totals (stock unchanged) |
+| `GET` | `/api/v1/purchases/{id}/` | `purchases.view` | Retrieve purchase details & immutable line-item snapshots |
+| `PATCH` | `/api/v1/purchases/{id}/` | `purchases.create` | Edit Draft/Ordered purchase (`409` if already received or cancelled) |
+| `POST` | `/api/v1/purchases/{id}/receive/` | `purchases.receive` | Atomically receive goods, create `PURCHASE` stock movements, update weighted-average cost (`409` on duplicate or cancelled) |
+| `POST` | `/api/v1/purchases/{id}/cancel/` | `purchases.cancel` | Cancel Draft/Ordered purchase (`409` if already received or cancelled) |
+
+### Customers & POS Sales (`/api/v1/customers/`, `/api/v1/sales/`)
+> Server-authoritative `Decimal` pricing, proportional discount & tax calculation, `X-Idempotency-Key` / `idempotency_key` replay protection, immutable sale snapshots, and atomic stock deduction (`SALE`) / restoration (`VOID`, `REFUND`) via `apps.inventory.services`.
+
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` / `POST` / `PATCH` | `/api/v1/customers/` | `customers.view` (or `sales.view/create`) / `customers.create` / `customers.edit` | Manage customer directory (no hard delete) |
+| `GET` | `/api/v1/sales/catalog/` | `sales.create` or `sales.view` | Active POS product lookup with barcode/SKU/name search, category filter, and read-only live stock availability |
+| `GET` | `/api/v1/sales/` | `sales.view` | Paginated sales history (`?search=`, `?status=`, `?payment_method=`, `?customer=`, `?date_from=`, `?date_to=`) |
+| `POST` | `/api/v1/sales/` | `sales.create` (+ `sales.discount` if `discount_amount > 0`) | Atomic POS checkout (`201 Created`; `200 OK` on idempotent replay; rolls back completely on insufficient stock) |
+| `GET` | `/api/v1/sales/{id}/` | `sales.view` | Retrieve full immutable sale detail & receipt payload (items, payments, totals, cashier, customer) |
+| `POST` | `/api/v1/sales/{id}/cancel/` | `sales.cancel` | Atomically void completed sale (requires `reason`), restore stock (`VOID` movement), block duplicates (`409`) |
+| `POST` | `/api/v1/sales/{id}/refund/` | `sales.refund` | Atomically refund completed sale (requires `reason`), restore stock (`REFUND` movement), block duplicates (`409`) |
+
+### Expenses & Cash Flow (`/api/v1/expense-categories/`, `/api/v1/expenses/`)
+> All expense mutations record sanitized audit logs. Expense categories in use are protected from deletion (`409 Conflict`).
+
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` / `POST` / `PATCH` / `DELETE` | `/api/v1/expense-categories/` | `expenses.view` (or `reports.view`) / `expenses.create` / `expenses.edit` / `expenses.delete` | Manage expense categories (`409` on delete if referenced by expenses) |
+| `GET` | `/api/v1/expenses/` | `expenses.view` | Paginated expenses list (`?search=`, `?category=`, `?payment_method=`, `?date_from=`, `?date_to=`) |
+| `POST` / `PATCH` / `DELETE` | `/api/v1/expenses/` | `expenses.create` / `expenses.edit` / `expenses.delete` | Record, edit, or delete operating expenses with full audit trail |
+| `GET` | `/api/v1/expenses/summary/` | `expenses.view` or `reports.view` | Exact `Decimal` cash flow summary (`sales_inflow`, `purchasing_outflow`, `expense_outflow`, `net_cash_flow`) and category/payment breakdowns (`?date_from=`, `?date_to=`) |
+
+### Store Settings (`/api/v1/settings/`)
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/settings/` | `settings.view` | Retrieve singleton store identity, currency/exchange rate, default tax, and receipt configuration |
+| `PATCH` / `PUT` | `/api/v1/settings/` | `settings.edit` | Atomically update store settings with validation and `settings.updated` audit log |
+| `GET` | `/api/v1/settings/receipt-profile/` | Authenticated (Active) | Read-only non-sensitive receipt branding subset (store name, phone, address, KHR rate, header/footer) used by POS cashiers |
+
+### Dashboard KPIs & Reports (`/api/v1/reports/`)
+> All financial metrics use exact `Decimal` aggregation. CSV exports neutralize spreadsheet formula injection and log `report.exported` in `audit_logs`.
+
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/reports/dashboard/` | `dashboard.view` | Real-time store KPIs (today/MTD sales, MTD expenses, low-stock count, pending POs), recent 5 sales, and top 5 low-stock products |
+| `GET` | `/api/v1/reports/sales/` | `reports.view` | Sales summary, daily breakdown, payment breakdown, and top-15 products with COGS & gross profit (`?date_from=`, `?date_to=`) |
+| `GET` | `/api/v1/reports/profit-loss/` | `reports.view` | Exact `Decimal` Profit & Loss statement (gross/net sales, COGS from `SaleItem.unit_cost_snapshot`, gross profit/margin, operating expenses, net profit/margin) (`?date_from=`, `?date_to=`) |
+| `GET` | `/api/v1/reports/purchasing/` | `reports.view` | Purchase order summary by status and received spend by supplier (`?date_from=`, `?date_to=`) |
+| `GET` | `/api/v1/reports/export/` | `reports.export` | Authorized CSV download (`?type=sales\|pnl\|inventory\|purchasing`, `?date_from=`, `?date_to=`) with audit logging |
+
 ## 4. Planned Future Endpoints (Not Yet Implemented)
 
-- Catalog & Inventory: `/api/v1/units/`, `/api/v1/products/`, `/api/v1/inventory/`
-- POS Sales: `/api/v1/sales/`, `/api/v1/sales/{id}/cancel/`, `/api/v1/sales/{id}/refund/`
-- Customers, Suppliers, Purchasing, Expenses, Reports & Settings
+- *(All planned v1 POS domain APIs are now implemented.)*

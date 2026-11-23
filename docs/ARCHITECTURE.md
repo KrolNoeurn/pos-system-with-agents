@@ -40,9 +40,13 @@ pos-system/
 │       ├── audit/              # [Implemented] Append-only AuditLog model, sanitizer, /api/v1/audit-logs/
 │       ├── rbac/               # [Implemented] Permission & Role models, seed_rbac, anti-escalation services, DRF permissions
 │       ├── accounts/           # [Implemented] Custom User model, JWT auth, profile, password change, user admin APIs, seed_admin
-│       ├── catalog/            # [Implemented: Categories] Category model, services, /api/v1/categories/, tests (Units & Products planned)
-│       └── (planned domain apps: inventory, customers, suppliers,
-│            sales, purchasing, expenses, reports, settings)
+│       ├── catalog/            # [Implemented] Category, Unit & Product models, services, /api/v1/categories/, /api/v1/units/, /api/v1/products/, tests
+│       ├── inventory/          # [Implemented] StockBalance & append-only StockMovement ledger, atomic services, valuation report, /api/v1/inventory/, tests
+│       ├── purchasing/         # [Implemented] Supplier, Purchase, PurchaseItem, atomic goods receiving via inventory services, /api/v1/suppliers/, /api/v1/purchases/, tests
+│       ├── sales/              # [Implemented] Customer, Sale, SaleItem, SalePayment, idempotent atomic checkout, cancel/refund stock restoration, /api/v1/customers/, /api/v1/sales/, tests
+│       ├── expenses/           # [Implemented] ExpenseCategory, Expense, audited CRUD, exact Decimal cash-flow summary, /api/v1/expense-categories/, /api/v1/expenses/, tests
+│       ├── store_settings/     # [Implemented] Singleton StoreSetting model, audited updates, /api/v1/settings/, /api/v1/settings/receipt-profile/, tests
+│       └── reports/            # [Implemented] Dashboard KPIs, Sales, Profit & Loss, Purchasing reports, audited CSV export, /api/v1/reports/, tests
 └── frontend/                   # React + Vite project
     ├── index.html / package.json / vite.config.js / .env.example
     └── src/

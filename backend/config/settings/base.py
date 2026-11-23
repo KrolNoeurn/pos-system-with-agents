@@ -55,6 +55,12 @@ INSTALLED_APPS = [
     "apps.rbac",
     "apps.accounts",
     "apps.catalog",
+    "apps.inventory",
+    "apps.purchasing",
+    "apps.sales",
+    "apps.expenses",
+    "apps.store_settings",
+    "apps.reports",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -121,6 +127,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Django REST Framework — secure by default with JWT authentication
@@ -161,3 +169,6 @@ CORS_ALLOWED_ORIGINS = _env_list(
     default="http://localhost:5173,http://127.0.0.1:5173",
 )
 CORS_ALLOW_CREDENTIALS = _env_bool("CORS_ALLOW_CREDENTIALS", default=True)
+
+# Inventory business rules
+INVENTORY_ALLOW_NEGATIVE_STOCK = _env_bool("INVENTORY_ALLOW_NEGATIVE_STOCK", default=False)
