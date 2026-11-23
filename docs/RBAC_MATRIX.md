@@ -1,25 +1,28 @@
 # RBAC Matrix & Access Control Specification
 
-> **Status:** Initial Specification (Enforced Server-Side in Django Once Implemented)
+> **Status:** Implemented Server-Side in Django (`apps/rbac`, `apps/accounts`, `apps/audit`) & Aligned in React (`AuthContext`, `ProtectedRoute`)
 
-## 1. Security Governance Rules
+## 1. Security Governance Rules (Enforced Server-Side)
 
-1. **Django Is Authoritative:** Every protected API endpoint enforces authentication, `user.is_active`, and explicit `<module>.<action>` permissions server-side.
-2. **Frontend Guards Are UX Only:** React hides unauthorized menus/buttons and blocks restricted routes based on `/api/v1/auth/me/`, but never substitutes for backend checks.
-3. **Anti-Escalation Protection:**
-   - Only Super Administrators may modify Super Administrator accounts or assign the Super Administrator role.
-   - Users may never grant permissions they do not possess.
-   - System roles (`super_admin`, `manager`, `cashier`, `inventory_clerk`, `accountant`) cannot be deleted.
-   - The last active Super Administrator cannot be deactivated or demoted.
+1. **Django Is Authoritative:** Every protected API endpoint enforces `JWTAuthentication`, `IsActiveAuthenticated` (blocking deactivated accounts immediately even with unexpired tokens), and explicit `<module>.<action>` permissions.
+2. **Frontend Guards Are UX Only:** React hides unauthorized navigation/actions and redirects unauthorized routes to `/unauthorized`, while Django independently enforces every request.
+3. **Anti-Privilege-Escalation Protections:**
+   - Only a Super Administrator (`is_superuser=True` or assigned an `is_super_admin=True` role) may manage Super Administrator accounts, protected system accounts (`is_system_account=True`), or assign the Super Administrator role.
+   - Non-super-admin users cannot grant any permission they do not personally hold when creating/editing roles or assigning permissions to roles.
+   - Non-super-admin users cannot assign any role whose permissions exceed their own authority, nor edit/deactivate/delete users who hold permissions outside their own authority.
+   - System roles (`is_system=True`: `super_admin`, `manager`, `cashier`, `inventory_clerk`, `accountant`) cannot be deleted, and cannot be modified by non-super-admins.
+   - Self-deactivation, self-deletion, and removing/deactivating the last active Super Administrator are blocked.
 
-## 2. Canonical Permission Catalog
+## 2. Canonical Seeded Permission Catalog (39 Permissions)
+
+Seeded idempotently via `python manage.py seed_rbac`:
 
 | Module | Permission Codes |
 | :--- | :--- |
 | Dashboard | `dashboard.view` |
-| Users | `users.view`, `users.create`, `users.edit`, `users.deactivate` |
+| Users | `users.view`, `users.create`, `users.edit`, `users.delete`, `users.deactivate` |
 | Roles | `roles.view`, `roles.manage` |
-| Catalog | `products.view`, `products.create`, `products.edit`, `products.delete`, `products.edit_price` |
+| Products | `products.view`, `products.create`, `products.edit`, `products.delete`, `products.edit_price` |
 | Inventory | `inventory.view`, `inventory.adjust` |
 | Customers | `customers.view`, `customers.create`, `customers.edit` |
 | Suppliers | `suppliers.view`, `suppliers.create`, `suppliers.edit` |
@@ -30,37 +33,19 @@
 | Settings | `settings.view`, `settings.edit` |
 | Audit Logs | `audit.view` |
 
-## 3. Default Role-to-Permission Matrix
+## 3. Default System Roles (`is_system=True`)
 
-| Permission Group | Super Admin | Store Manager | Cashier | Inventory Clerk | Accountant |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| `dashboard.view` | Yes | Yes | Yes (limited) | Yes (limited) | Yes |
-| `users.*` | Full | View only | No | No | No |
-| `roles.*` | Full | View only | No | No | No |
-| `products.view` | Yes | Yes | Yes | Yes | Yes |
-| `products.create/edit/delete` | Yes | Yes | No | Create/Edit | No |
-| `products.edit_price` | Yes | Yes | No | No | No |
-| `inventory.view` | Yes | Yes | Yes | Yes | Yes |
-| `inventory.adjust` | Yes | Yes | No | Yes | No |
-| `customers.view/create/edit` | Full | Full | View/Create | No | View |
-| `suppliers.view/create/edit` | Full | Full | No | View/Create | View |
-| `sales.view` | Yes | Yes | Own/Shift | No | Yes |
-| `sales.create` | Yes | Yes | Yes | No | No |
-| `sales.discount` | Yes | Yes | Policy-limited | No | No |
-| `sales.cancel` / `sales.refund` | Yes | Yes | No | No | No |
-| `purchases.*` | Full | Full | No | View/Create/Receive | View |
-| `expenses.*` | Full | Full | No | No | View/Create/Edit |
-| `reports.view` / `reports.export` | Yes / Yes | Yes / Yes | No | Inventory only | Yes / Yes |
-| `settings.view` / `settings.edit` | Yes / Yes | View only | No | No | View only |
-| `audit.view` | Yes | Yes (store ops) | No | No | Yes |
+| Role Slug | Display Name | Scope Summary |
+| :--- | :--- | :--- |
+| `super_admin` | Super Administrator | `is_super_admin=True`; unrestricted access to all 39 permissions |
+| `manager` | Store Manager | Store operations, catalog/pricing, inventory, sales/refunds, purchasing, expenses, reports, read-only users/roles/settings/audit |
+| `cashier` | Cashier | `dashboard.view`, `products.view`, `inventory.view`, `customers.view/create`, `sales.view/create/discount` |
+| `inventory_clerk` | Inventory Clerk | `dashboard.view`, `products.view/create/edit`, `inventory.view/adjust`, `suppliers.view/create`, `purchases.view/create/receive` |
+| `accountant` | Accountant | Read-oriented sales/purchases/catalog/inventory/customers/suppliers/settings/audit, expenses view/create/edit, reports view/export |
 
-## 4. Mandatory Audited Actions
+## 4. Implemented Security Audit Events (`audit_logs`)
 
-All of the following operations must create an append-only `audit_logs` record:
-- Login / logout / failed login / password change
-- User create / edit / deactivate
-- Role create / edit / delete / permission assignment / user-role assignment
-- Product price or cost change
-- Manual stock adjustment
-- Sale cancellation, refund, or manual discount override
-- System or tax setting updates
+Automatically recorded without storing passwords or tokens (redacted by `apps/audit/services.py`):
+- `auth.login`, `auth.login_failed`, `auth.logout`, `auth.profile_updated`, `auth.password_changed`
+- `user.created`, `user.updated`, `user.activated`, `user.deactivated`, `user.deleted`, `user.roles_assigned`
+- `role.created`, `role.updated`, `role.deleted`, `role.permissions_assigned`

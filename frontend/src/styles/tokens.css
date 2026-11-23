@@ -1,51 +1,356 @@
-/* Centralized POS design tokens layered over Bootstrap 5 */
-:root {
-  --pos-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Khmer",
-    "Kantumruy Pro", sans-serif;
-  --pos-bg-body: #f8f9fa;
+/* ==========================================================================
+   POS Design System — Centralized CSS Variables, Light/Dark Themes & Khmer UI
+   ========================================================================== */
+
+:root,
+[data-bs-theme="light"] {
+  /* Typography */
+  --pos-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Noto Sans Khmer", "Kantumruy Pro", "Khmer OS Battambang", sans-serif;
+  --pos-line-height-en: 1.5;
+  --pos-line-height-km: 1.72;
+
+  /* Surfaces */
+  --pos-bg-body: #f4f6f9;
   --pos-bg-surface: #ffffff;
-  --pos-border-subtle: #dee2e6;
-  --pos-text-primary: #212529;
-  --pos-text-muted: #6c757d;
+  --pos-bg-elevated: #ffffff;
+  --pos-bg-subtle: #f8f9fb;
+  --pos-bg-sidebar: #ffffff;
+  --pos-bg-sidebar-hover: #eef2f7;
+  --pos-bg-sidebar-active: rgba(13, 110, 253, 0.1);
+  --pos-bg-topbar: #ffffff;
+
+  /* Borders & Shadows */
+  --pos-border-subtle: #e2e8f0;
+  --pos-border-strong: #cbd5e1;
+  --pos-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --pos-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  /* Text */
+  --pos-text-primary: #0f172a;
+  --pos-text-secondary: #475569;
+  --pos-text-muted: #64748b;
+
+  /* Brand & Accents */
+  --pos-accent: #0d6efd;
+  --pos-accent-contrast: #ffffff;
+
+  /* Layout Dimensions */
+  --pos-sidebar-width: 260px;
+  --pos-sidebar-mini-width: 74px;
   --pos-topbar-height: 60px;
+  --pos-radius-sm: 0.375rem;
+  --pos-radius-md: 0.625rem;
+  --pos-radius-lg: 0.875rem;
+  --pos-transition-fast: 160ms ease;
 }
 
 [data-bs-theme="dark"] {
-  --pos-bg-body: #12161c;
-  --pos-bg-surface: #1b222c;
-  --pos-border-subtle: #2c3645;
+  --pos-bg-body: #0f141c;
+  --pos-bg-surface: #171f2b;
+  --pos-bg-elevated: #1e293b;
+  --pos-bg-subtle: #131a24;
+  --pos-bg-sidebar: #141b25;
+  --pos-bg-sidebar-hover: #1f2a3a;
+  --pos-bg-sidebar-active: rgba(59, 130, 246, 0.18);
+  --pos-bg-topbar: #141b25;
+
+  --pos-border-subtle: #263244;
+  --pos-border-strong: #37475e;
+  --pos-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --pos-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.4);
+
   --pos-text-primary: #f1f5f9;
+  --pos-text-secondary: #cbd5e1;
   --pos-text-muted: #94a3b8;
+
+  --pos-accent: #3b82f6;
+  --pos-accent-contrast: #ffffff;
 }
 
+/* Base Typography & Khmer Legibility */
+html,
 body {
   font-family: var(--pos-font-sans);
   background-color: var(--pos-bg-body);
   color: var(--pos-text-primary);
+  line-height: var(--pos-line-height-en);
   min-height: 100vh;
 }
 
+html[lang="km"],
 html[lang="km"] body {
-  line-height: 1.7;
+  line-height: var(--pos-line-height-km);
 }
 
-.pos-app-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+html[lang="km"] .btn,
+html[lang="km"] .nav-link,
+html[lang="km"] .dropdown-item,
+html[lang="km"] .badge {
+  line-height: 1.55;
 }
 
-.pos-surface {
-  background-color: var(--pos-bg-surface);
-  border-color: var(--pos-border-subtle);
-}
-
-.pos-navbar {
-  min-height: var(--pos-topbar-height);
-  background-color: var(--pos-bg-surface);
-  border-bottom: 1px solid var(--pos-border-subtle);
+/* Accessible focus outlines */
+:focus-visible {
+  outline: 2px solid var(--pos-accent);
+  outline-offset: 2px;
 }
 
 .pos-tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Shared Surfaces & Cards */
+.pos-surface {
+  background-color: var(--pos-bg-surface);
+  border: 1px solid var(--pos-border-subtle);
+  border-radius: var(--pos-radius-md);
+  box-shadow: var(--pos-shadow-sm);
+}
+
+.pos-surface-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--pos-border-subtle);
+}
+
+/* ==========================================================================
+   Vertical Layout Shell
+   ========================================================================== */
+
+.pos-vertical-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--pos-bg-body);
+}
+
+.pos-sidebar {
+  width: var(--pos-sidebar-width);
+  flex-shrink: 0;
+  background-color: var(--pos-bg-sidebar);
+  border-right: 1px solid var(--pos-border-subtle);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 1030;
+  transition: width var(--pos-transition-fast), transform var(--pos-transition-fast);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.pos-sidebar.is-mini {
+  width: var(--pos-sidebar-mini-width);
+}
+
+.pos-sidebar.is-collapsed {
+  width: 0;
+  border-right-width: 0;
+  overflow: hidden;
+}
+
+.pos-sidebar-brand {
+  min-height: var(--pos-topbar-height);
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--pos-border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--pos-text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pos-sidebar.is-mini .pos-sidebar-brand {
+  justify-content: center;
+  padding: 0 0.5rem;
+}
+
+.pos-sidebar-nav {
+  padding: 0.75rem 0.625rem;
+  flex: 1;
+}
+
+.pos-sidebar-link,
+.pos-sidebar-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--pos-radius-sm);
+  border: 0;
+  background: transparent;
+  color: var(--pos-text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.925rem;
+  text-align: left;
+  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast);
+}
+
+.pos-sidebar-link:hover,
+.pos-sidebar-group-btn:hover {
+  background-color: var(--pos-bg-sidebar-hover);
+  color: var(--pos-text-primary);
+}
+
+.pos-sidebar-link.active {
+  background-color: var(--pos-bg-sidebar-active);
+  color: var(--pos-accent);
+  font-weight: 600;
+}
+
+.pos-sidebar.is-mini .pos-sidebar-link,
+.pos-sidebar.is-mini .pos-sidebar-group-btn {
+  justify-content: center;
+  padding: 0.65rem 0.5rem;
+}
+
+.pos-sidebar-submenu {
+  margin-top: 0.25rem;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pos-sidebar.is-mini .pos-sidebar-submenu {
+  padding-left: 0;
+}
+
+.pos-vertical-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pos-topbar {
+  min-height: var(--pos-topbar-height);
+  background-color: var(--pos-bg-topbar);
+  border-bottom: 1px solid var(--pos-border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  gap: 1rem;
+}
+
+/* Mobile Sidebar Drawer (< 992px) */
+.pos-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  z-index: 1035;
+}
+
+@media (max-width: 991.98px) {
+  .pos-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--pos-sidebar-width) !important;
+    border-right: 1px solid var(--pos-border-subtle) !important;
+    transform: translateX(-100%);
+    z-index: 1040;
+  }
+
+  .pos-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+}
+
+/* ==========================================================================
+   Horizontal Layout Shell
+   ========================================================================== */
+
+.pos-horizontal-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--pos-bg-body);
+}
+
+.pos-horizontal-header {
+  background-color: var(--pos-bg-topbar);
+  border-bottom: 1px solid var(--pos-border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+.pos-horizontal-subbar {
+  background-color: var(--pos-bg-subtle);
+  border-bottom: 1px solid var(--pos-border-subtle);
+}
+
+.pos-nav-dropdown-menu {
+  min-width: 220px;
+  border: 1px solid var(--pos-border-subtle);
+  box-shadow: var(--pos-shadow-md);
+  background-color: var(--pos-bg-elevated);
+}
+
+/* ==========================================================================
+   Modal & Toast Layers
+   ========================================================================== */
+
+.pos-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.pos-modal-dialog {
+  width: 100%;
+  background-color: var(--pos-bg-elevated);
+  border: 1px solid var(--pos-border-subtle);
+  border-radius: var(--pos-radius-lg);
+  box-shadow: var(--pos-shadow-md);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.pos-modal-dialog.size-sm {
+  max-width: 420px;
+}
+
+.pos-modal-dialog.size-md {
+  max-width: 620px;
+}
+
+.pos-modal-dialog.size-lg {
+  max-width: 840px;
+}
+
+.pos-toast-stack {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(360px, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.pos-toast-item {
+  pointer-events: auto;
+  background-color: var(--pos-bg-elevated);
+  border: 1px solid var(--pos-border-subtle);
+  border-radius: var(--pos-radius-md);
+  box-shadow: var(--pos-shadow-md);
 }

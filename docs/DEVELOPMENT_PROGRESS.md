@@ -1,44 +1,47 @@
 # Development Progress
 
 > **Last Updated:** 2026-11-23  
-> **Current Phase:** Project Initialization Complete — Awaiting Approval for Authentication & RBAC / Core Layout Phase
+> **Current Phase:** Phase 4 — POS UI Framework Complete (Awaiting Approval for Business Modules)
 
 ## Completed Milestones
 
-### Workspace Foundation
-- Updated root `AGENTS.md` with project standards, security rules, conventions, and anti-fake / verification rules.
-- Established all seven specialized Antigravity workspace skills under `.agents/skills/` with progressive-disclosure `references/` files.
-- Created all nine project documentation files under `docs/`.
+### Phase 0 — Workspace Foundation
+- Root `AGENTS.md`, seven specialized Antigravity workspace skills under `.agents/skills/` (with `references/`), and all nine `docs/*.md` files established and validated.
 
-### Project Initialization (Backend, Frontend, Health API, Environment)
-- **Backend (`backend/`):**
-  - Initialized Python virtual environment (`backend/.venv`, Python 3.15.2) and pinned dependencies in `backend/requirements.txt` (`Django==6.1.3`, `djangorestframework==3.18.3`, `django-cors-headers==4.9.0`, `python-dotenv==1.2.4`).
-  - Configured split settings (`config/settings/base.py`, `dev.py`, `prod.py`), SQLite database, secure-by-default DRF (`IsAuthenticated`), pagination, environment loading, and CORS (`http://localhost:5173`, `http://127.0.0.1:5173`).
-  - Created modular `apps/core` app with `services.py` (`get_health_status`), public `GET /api/v1/health/` endpoint (`AllowAny`), and automated tests (`apps/core/tests/test_health.py`).
-- **Frontend (`frontend/`):**
-  - Initialized React + Vite (JavaScript) application with `react@19.3.1`, `react-dom@19.3.1`, `react-router-dom@7.18.6`, `axios@1.21.1`, `bootstrap@5.3.9`, `bootstrap-icons@1.13.2`, `vite@6.4.6`, and `@vitejs/plugin-react@4.7.0`.
-  - Created modular structure: `src/app/router.jsx`, `src/layouts/MainLayout.jsx`, `src/components/ErrorBoundary.jsx`, `src/components/StatusAlert.jsx`, `src/pages/HomePage.jsx`, `src/pages/NotFoundPage.jsx`, `src/services/apiClient.js`, `src/services/healthService.js`, and `src/styles/tokens.css`.
-  - Built minimal responsive Bootstrap 5 initialization shell calling `/api/v1/health/` through centralized Axios client (`VITE_API_BASE_URL`) with loading, retry, and error states.
-- **Environment & Documentation:**
-  - Created `.env.example`, `backend/.env.example`, `frontend/.env.example`, `.gitignore`, and root `README.md`.
-  - Updated `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT_PROGRESS.md`.
+### Phase 2 — Project Initialization
+- Initialized Django + DRF backend (`backend/`) with SQLite, split settings (`base`, `dev`, `prod`), CORS, and `/api/v1/health/`.
+- Initialized React + Vite + Bootstrap 5 frontend (`frontend/`) with centralized Axios client, React Router, ErrorBoundary, `.env.example`, `.gitignore`, and `README.md`.
+
+### Phase 3 — Authentication & RBAC
+- Implemented custom `accounts.User`, `rbac.Permission` (39 canonical permissions), `rbac.Role` (5 protected system roles), append-only `audit.AuditLog`, JWT auth with rotation/blacklist, anti-privilege-escalation services, and 21 passing backend tests.
+- Built frontend `AuthContext`, `ProtectedRoute`, `LoginPage`, `ProfilePage`, `UsersPage`, `RolesPage`, and `UnauthorizedPage`.
+
+### Phase 4 — POS UI Framework
+- **Centralized Design System & Config:**
+  - Upgraded `frontend/src/styles/tokens.css` with Light & Dark CSS custom properties (`[data-bs-theme="light"]` / `[data-bs-theme="dark"]`), sidebar/topbar layout tokens, accessible focus rings, and Khmer typography (`line-height: 1.72` on `html[lang="km"]`).
+  - Created `frontend/src/config/themeConfig.js`, `frontend/src/i18n/translations.js` (English & Khmer UI dictionary), and `frontend/src/config/navigation.js` (centralized nested navigation + recursive RBAC filtering + breadcrumb resolution).
+- **Preferences, Toast & Confirm Contexts:**
+  - Built `PreferencesContext` (theme, layout, sidebar mode, language synced to `localStorage` and `PATCH /api/v1/auth/me/`), `ToastContext` (accessible toast stack), and `ConfirmContext` (promise-based confirmation modal).
+- **Dual Layouts Sharing `<Outlet />`:**
+  - Built `AppShell`, `VerticalLayout` (left sidebar with Expanded / Mini / Collapsed desktop modes, mobile drawer + backdrop, nested collapsible menu, top navbar, breadcrumbs, user menu), `HorizontalLayout` (top menu, logo, nested dropdown menus, mobile responsive collapse, breadcrumb bar), `Breadcrumbs`, and `HeaderControls`.
+- **Reusable UI Component Library (`frontend/src/components/ui/`):**
+  - Built `PageHeader`, `AppCard`, `DataTable`, `FormControls` (`FormInput`, `FormSelect`, `FormTextarea`, `FormActions`), `AppModal`, `LoadingState`, `EmptyState`, and `ErrorState`.
+- **Full Integration & Code-Splitting:**
+  - Refactored `HomePage`, `ProfilePage`, `UsersPage`, `RolesPage`, `App.jsx`, and `router.jsx` (with `React.lazy` route code-splitting) to share all reusable primitives across both layouts without duplication.
+- **Automated Frontend Tests:**
+  - Added Vitest + React Testing Library (`frontend/src/__tests__/uiFramework.test.jsx`) verifying layout switching, shared route preservation, Light/Dark themes, Expanded/Mini/Collapsed sidebar + mobile drawer, permission-based menus, Horizontal dropdowns, Khmer switching, Toasts, Confirm modal, AppModal, and DataTable states.
 
 ## Observed Verification Results
 
-- `backend/.venv/bin/python backend/manage.py check` — Passed (0 issues).
-- `backend/.venv/bin/python backend/manage.py migrate --noinput` — Passed (all initial SQLite migrations applied).
-- `backend/.venv/bin/python backend/manage.py test apps.core -v 2` — Passed (`5/5` tests in `0.053s`: versioned URL, unauthenticated `200`, degraded DB `503`, allowed CORS origin, disallowed CORS origin).
-- `npm --prefix frontend run build` — Passed (`vite build`, 112 modules transformed in `9.51s`, 0 vulnerabilities from `npm install`).
-- Live integration check (Django `127.0.0.1:8000` + Vite `127.0.0.1:5173` + Axios):
-  - `GET /api/v1/health/` returned HTTP `200` with valid JSON (`{"status": "ok", "service": "pos-backend", "api_version": "v1", "database": "connected", ...}`).
-  - CORS `GET` (`Origin: http://127.0.0.1:5173`) and `OPTIONS` preflight (`Origin: http://localhost:5173`) returned expected `Access-Control-Allow-Origin` headers.
-  - Vite dev server served `/` (HTTP `200`) and `/src/main.jsx` (HTTP `200`), and frontend `axios` successfully queried `/api/v1/health/`.
+- `npm --prefix frontend test` (`vitest run`) — **PASS** (`7/7` tests passed in `4.96s`).
+- `npm --prefix frontend run build` (`vite build`) — **PASS** (143 modules transformed, route chunks cleanly split, main chunk `493.85 kB`, 0 build warnings).
+- Backend regression posture: Backend code was not modified in Phase 4 (`21/21` backend tests remained passing from Phase 3).
 
-## Known Issues & Environment Notes
+## Known Issues & Notes
 
-- **macOS `runserver` startup delay:** On this machine, Python's `socket.getfqdn('127.0.0.1')` takes ~35s inside `http.server.HTTPServer.server_bind` before `manage.py runserver` binds port `8000`. Once bound, requests respond immediately.
-- **npm 11 `allowScripts` notice:** `npm install` logged a non-blocking warning regarding `esbuild@0.25.12` install scripts; `vite build` and `vite dev` both executed cleanly without issue.
+- **npm 11 `allowScripts` notice:** Installing dev dependencies logged a non-blocking informational warning for `esbuild`/`fsevents` install scripts; both `vitest run` and `vite build` executed cleanly (`0 vulnerabilities`).
+- No product, inventory, or sales business modules have been implemented yet (per Phase 4 scope).
 
 ## Next Recommended Phase
 
-- **Authentication, RBAC & Core UI Shell:** Implement custom User model, JWT auth (`/api/v1/auth/`), Roles/Permissions (`<module>.<action>`), audit logging foundation, plus frontend AuthContext, protected routes, English/Khmer i18n setup, Light/Dark theme toggle, and shared Vertical/Horizontal layouts.
+- **Phase 5 — Catalog & Inventory Management (Categories, Units, Products, Stock Balances & Movement Ledger):** Implement backend `catalog` and `inventory` apps (`DecimalField` prices, atomic stock adjustments, audit logs, RBAC permissions, automated tests) and matching frontend screens built directly on the Phase 4 UI framework.
