@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.rbac",
     "apps.accounts",
+    "apps.catalog",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -133,7 +134,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 20,
 }
 

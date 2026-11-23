@@ -9,6 +9,7 @@ const HomePage = lazy(() => import("../pages/HomePage"));
 const ProfilePage = lazy(() => import("../pages/ProfilePage"));
 const UsersPage = lazy(() => import("../pages/UsersPage"));
 const RolesPage = lazy(() => import("../pages/RolesPage"));
+const CategoriesPage = lazy(() => import("../pages/CategoriesPage"));
 const UnauthorizedPage = lazy(() => import("../pages/UnauthorizedPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 
@@ -36,6 +37,14 @@ export const routeConfig = [
       {
         path: "profile",
         element: withSuspense(<ProfilePage />),
+      },
+      {
+        path: "categories",
+        element: (
+          <ProtectedRoute requiredPermission="products.view">
+            {withSuspense(<CategoriesPage />)}
+          </ProtectedRoute>
+        ),
       },
       {
         path: "users",

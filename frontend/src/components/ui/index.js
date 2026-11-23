@@ -6,3 +6,4 @@ export { default as ErrorState } from "./ErrorState";
 export { FormActions, FormInput, FormSelect, FormTextarea } from "./FormControls";
 export { default as LoadingState } from "./LoadingState";
 export { default as PageHeader } from "./PageHeader";
+export { default as Pagination } from "./Pagination";

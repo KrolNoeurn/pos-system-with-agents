@@ -13,6 +13,20 @@ export const NAVIGATION_ITEMS = [
     end: true,
   },
   {
+    id: "catalog",
+    labelKey: "nav.catalog",
+    icon: "bi-tags",
+    children: [
+      {
+        id: "categories",
+        labelKey: "nav.categories",
+        icon: "bi-diagram-3",
+        to: "/categories",
+        permission: "products.view",
+      },
+    ],
+  },
+  {
     id: "administration",
     labelKey: "nav.administration",
     icon: "bi-shield-lock",

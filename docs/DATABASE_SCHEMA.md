@@ -26,12 +26,17 @@
 ### `audit_logs` (`apps/audit/migrations/0001_initial.py`)
 - `id` (PK), `actor_id` (nullable FK to `accounts_users`, `SET_NULL`), `action` (indexed), `target_type` (indexed), `target_id`, `ip_address`, `metadata` (JSON), `created_at` (indexed)
 
+### `catalog_categories` (`apps/catalog/migrations/0001_initial.py`)
+- `id` (PK), `name` (unique, indexed), `name_km` (optional Khmer display name), `slug` (unique, indexed)
+- `parent_id` (nullable self-FK with `on_delete=models.PROTECT`, preventing deletion of parent categories in use)
+- `description`, `is_active` (indexed), `created_at`, `updated_at`
+
 ### JWT Blacklist (`rest_framework_simplejwt.token_blacklist`)
 - `token_blacklist_outstandingtoken`, `token_blacklist_blacklistedtoken`
 
 ## 3. Planned Domain Tables (Not Yet Implemented)
 
-- **Catalog & Inventory:** `categories`, `units`, `products`, `stock_balances`, `stock_movements`
+- **Catalog & Inventory:** `units`, `products`, `stock_balances`, `stock_movements`
 - **Sales & Payments:** `customers`, `sales`, `sale_items` (price/tax snapshots), `sale_payments`
 - **Purchasing, Expenses & Settings:** `suppliers`, `purchases`, `purchase_items`, `expense_categories`, `expenses`, `store_settings`
 
@@ -41,3 +46,4 @@
 | :--- | :--- | :--- |
 | 2026-11-23 | Initial schema blueprint established | Phase 0 — Foundation |
 | 2026-11-23 | Implemented `accounts_users`, `rbac_permissions`, `rbac_roles`, `audit_logs`, and JWT blacklist migrations | Phase 3 — Auth & RBAC |
+| 2026-11-23 | Implemented `catalog_categories` table with `PROTECT` self-FK and bilingual fields | Categories Module |

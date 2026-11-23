@@ -40,7 +40,8 @@ pos-system/
 │       ├── audit/              # [Implemented] Append-only AuditLog model, sanitizer, /api/v1/audit-logs/
 │       ├── rbac/               # [Implemented] Permission & Role models, seed_rbac, anti-escalation services, DRF permissions
 │       ├── accounts/           # [Implemented] Custom User model, JWT auth, profile, password change, user admin APIs, seed_admin
-│       └── (planned domain apps: catalog, inventory, customers, suppliers,
+│       ├── catalog/            # [Implemented: Categories] Category model, services, /api/v1/categories/, tests (Units & Products planned)
+│       └── (planned domain apps: inventory, customers, suppliers,
 │            sales, purchasing, expenses, reports, settings)
 └── frontend/                   # React + Vite project
     ├── index.html / package.json / vite.config.js / .env.example

@@ -62,8 +62,19 @@
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/audit-logs/` | `audit.view` | Read-only paginated audit trail (`?action=`, `?target_type=`) |
 
+### Catalog — Categories (`/api/v1/categories/`)
+| Method | Endpoint | Required Permission | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/categories/` | `products.view` | Paginated category list (`?page=`, `?page_size=`, `?search=`, `?is_active=true\|false`, `?parent=root\|<id>`) |
+| `POST` | `/api/v1/categories/` | `products.create` | Create category (`name`, optional `name_km`, `slug`, `parent`, `description`, `is_active`) |
+| `GET` | `/api/v1/categories/{id}/` | `products.view` | Retrieve category detail (includes `parent_name`, `children_count`, `is_in_use`) |
+| `PATCH` | `/api/v1/categories/{id}/` | `products.edit` | Update category fields (blocks duplicate names & circular parent hierarchies) |
+| `DELETE` | `/api/v1/categories/{id}/` | `products.delete` | Delete unused category (`204`); returns `409 Conflict` if referenced by subcategories or protected records |
+| `POST` | `/api/v1/categories/{id}/activate/` | `products.edit` | Activate category |
+| `POST` | `/api/v1/categories/{id}/deactivate/` | `products.edit` | Deactivate category |
+
 ## 4. Planned Future Endpoints (Not Yet Implemented)
 
-- Catalog & Inventory: `/api/v1/categories/`, `/api/v1/units/`, `/api/v1/products/`, `/api/v1/inventory/`
+- Catalog & Inventory: `/api/v1/units/`, `/api/v1/products/`, `/api/v1/inventory/`
 - POS Sales: `/api/v1/sales/`, `/api/v1/sales/{id}/cancel/`, `/api/v1/sales/{id}/refund/`
 - Customers, Suppliers, Purchasing, Expenses, Reports & Settings
