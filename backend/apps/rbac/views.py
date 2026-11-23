@@ -56,7 +56,7 @@ class RoleViewSet(ModelViewSet):
         queryset = (
             Role.objects.prefetch_related("permissions")
             .annotate(user_count=Count("users", distinct=True))
-            .all()
+            .order_by("name", "id")
         )
         search = self.request.query_params.get("search")
         if search:

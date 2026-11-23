@@ -43,3 +43,6 @@
 ## Phase 7 — Hardening & Production Readiness (Completed)
 - [x] End-to-end POS transaction, financial precision, concurrency, and RBAC security full regression suite
 - [x] PostgreSQL production configuration (`prod.py`), `manage.py check --deploy` audit, Vite vendor chunk optimization, and deployment checklist
+
+## Version 2 (V2) — Planned Enhancements
+- See [V2_CHECKLIST.md](./V2_CHECKLIST.md) for the full V2 roadmap and task-by-task implementation checklist (Register Shifts & Thermal Print, Multi-Unit Conversion & Wholesale/Promos, Partial Receiving & Refunds, Charts/Barcode/KHQR, Docker/CI/Rate Limiting, and Multi-Branch Transfers).
