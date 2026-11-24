@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import StatusAlert from "../components/StatusAlert";
 import {
   AppCard,
   ErrorState,
@@ -148,7 +149,16 @@ export default function SettingsPage() {
       <div className="row g-4 align-items-start">
         <div className="col-12 col-xl-8">
           <form onSubmit={handleSave} className="d-flex flex-column gap-4">
-            {formError ? <div className="alert alert-danger py-2 small mb-0">{formError}</div> : null}
+            {formError ? (
+              <StatusAlert
+                variant="danger"
+                message={formError}
+                autoHideMs={6000}
+                dismissible
+                onClose={() => setFormError("")}
+                className="py-2 small"
+              />
+            ) : null}
 
             <AppCard title={t("settings.sectionIdentity")} icon="bi-shop">
               <div className="row g-3">

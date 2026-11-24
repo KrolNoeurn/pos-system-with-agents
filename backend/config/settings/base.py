@@ -129,6 +129,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+BACKUP_ROOT = Path(os.environ.get("POS_BACKUP_DIR", str(BASE_DIR / "backups")))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Django REST Framework — secure by default with JWT authentication

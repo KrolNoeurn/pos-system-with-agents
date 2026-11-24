@@ -23,6 +23,7 @@ from apps.purchasing.services import (
     cancel_purchase,
     create_purchase,
     create_supplier,
+    import_suppliers_csv,
     receive_purchase,
     update_purchase,
     update_supplier,
@@ -92,6 +93,60 @@ class SupplierViewSet(
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
         return Response(SupplierSerializer(refreshed).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="activate",
+        permission_classes=[IsActiveAuthenticated, require_permission("suppliers.edit")],
+    )
+    def activate(self, request: Request, pk=None) -> Response:
+        instance = self.get_object()
+        update_supplier(
+            actor=request.user,
+            supplier=instance,
+            is_active=True,
+            ip_address=get_client_ip(request),
+        )
+        refreshed = self.get_queryset().get(pk=instance.pk)
+        return Response(SupplierSerializer(refreshed).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="deactivate",
+        permission_classes=[IsActiveAuthenticated, require_permission("suppliers.edit")],
+    )
+    def deactivate(self, request: Request, pk=None) -> Response:
+        instance = self.get_object()
+        update_supplier(
+            actor=request.user,
+            supplier=instance,
+            is_active=False,
+            ip_address=get_client_ip(request),
+        )
+        refreshed = self.get_queryset().get(pk=instance.pk)
+        return Response(SupplierSerializer(refreshed).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="import-csv",
+        permission_classes=[IsActiveAuthenticated, require_permission("suppliers.create")],
+    )
+    def import_csv(self, request: Request) -> Response:
+        uploaded = request.FILES.get("file")
+        if uploaded is not None:
+            csv_text = uploaded.read().decode("utf-8-sig", errors="replace")
+        else:
+            csv_text = str(request.data.get("csv_text") or "")
+
+        summary = import_suppliers_csv(
+            actor=request.user,
+            csv_text=csv_text,
+            ip_address=get_client_ip(request),
+        )
+        return Response(summary, status=status.HTTP_200_OK)
 
 
 class PurchaseViewSet(

@@ -6,6 +6,7 @@ from apps.inventory.views import (
     OpeningStockAPIView,
     StockAdjustmentAPIView,
     StockBalanceListAPIView,
+    StockImportAdjustAPIView,
     StockInAPIView,
     StockMovementListAPIView,
     StockOutAPIView,
@@ -19,5 +20,6 @@ urlpatterns = [
     path("inventory/stock-in/", StockInAPIView.as_view(), name="api-v1-inventory-stock-in"),
     path("inventory/stock-out/", StockOutAPIView.as_view(), name="api-v1-inventory-stock-out"),
     path("inventory/adjustments/", StockAdjustmentAPIView.as_view(), name="api-v1-inventory-adjustments"),
+    path("inventory/import-adjust/", StockImportAdjustAPIView.as_view(), name="api-v1-inventory-import-adjust"),
     path("inventory/report/", InventoryReportAPIView.as_view(), name="api-v1-inventory-report"),
 ]

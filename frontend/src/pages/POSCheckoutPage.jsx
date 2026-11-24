@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import StatusAlert from "../components/StatusAlert";
 import ReceiptModal from "../components/sales/ReceiptModal";
 import {
   AppCard,
@@ -719,7 +720,16 @@ export default function POSCheckoutPage() {
         size="md"
       >
         <form onSubmit={handleCompleteSale}>
-          {paymentError ? <div className="alert alert-danger py-2 small">{paymentError}</div> : null}
+          {paymentError ? (
+            <StatusAlert
+              variant="danger"
+              message={paymentError}
+              autoHideMs={6000}
+              dismissible
+              onClose={() => setPaymentError("")}
+              className="py-2 small mb-3"
+            />
+          ) : null}
 
           <div className="p-3 rounded bg-body-tertiary mb-3 d-flex justify-content-between align-items-center">
             <span className="fw-semibold">{t("sales.grandTotalLabel")}</span>
@@ -897,7 +907,16 @@ export default function POSCheckoutPage() {
         size="md"
       >
         <form onSubmit={handleSaveQuickCustomer}>
-          {customerError ? <div className="alert alert-danger py-2 small">{customerError}</div> : null}
+          {customerError ? (
+            <StatusAlert
+              variant="danger"
+              message={customerError}
+              autoHideMs={6000}
+              dismissible
+              onClose={() => setCustomerError("")}
+              className="py-2 small mb-3"
+            />
+          ) : null}
           <FormInput
             id="quick-customer-name"
             className="mb-3"

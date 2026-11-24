@@ -1,7 +1,7 @@
 # Development Progress
 
-> **Last Updated:** 2026-11-23  
-> **Current Phase:** Phase 7 Complete — Production Hardening, Full Regression Suite & Deployment Readiness Verified (100/100 Automated Tests Passing)
+> **Last Updated:** 2026-11-24  
+> **Current Phase:** Post-v1 Enhancements Complete — Customer/Supplier Control, Bulk Stock Import, User Profile Images & Crontab Telegram Backup Control Verified
 
 ## Completed Milestones
 
@@ -109,14 +109,42 @@
   - Added permanent automated `i18nParity.test.js` guaranteeing 100% key parity and non-empty strings across English (`en`) and Khmer (`km`) dictionaries.
 - **Documentation Finalized:** Updated `README.md`, `docs/ROADMAP.md`, and `docs/DEVELOPMENT_PROGRESS.md`.
 
-## Observed Verification Results (Full Final Audit)
+### Customer Control, Supplier Control & Atomic Bulk Stock Import/Adjustment
+- **Backend (`backend/apps/sales/`, `backend/apps/purchasing/`, `backend/apps/inventory/`):**
+  - Added Customer lifecycle & CSV import endpoints (`POST /api/v1/customers/{id}/activate/`, `/deactivate/`, `/import-csv/`) in `apps/sales` via `import_customers_csv` (atomic upsert by name/phone with `customer.imported` audit logs, gated by `customers.edit` / `customers.create`).
+  - Added Supplier lifecycle & CSV import endpoints (`POST /api/v1/suppliers/{id}/activate/`, `/deactivate/`, `/import-csv/`) in `apps/purchasing` via `import_suppliers_csv` (atomic upsert by name with `supplier.imported` audit logs, gated by `suppliers.edit` / `suppliers.create`).
+  - Added `POST /api/v1/inventory/import-adjust/` (`inventory.adjust`) via `import_and_adjust_stock_csv` executing every CSV row (`sku,operation,quantity,unit_cost,reference_code,notes`; operations `opening|stock_in|stock_out|increase|decrease`) strictly through `record_stock_movement` inside a single `transaction.atomic()` block (full rollback on any row error), with optional Supplier/Customer tagging (`[Supplier: ...]` / `[Customer: ...]`) and `inventory.bulk_imported` audit logging.
+  - Added `backend/apps/inventory/tests/test_partners_and_bulk_import.py` covering Customer/Supplier lifecycle & CSV import, bulk stock import/adjust with moving-average cost, partner tagging, atomic rollback on invalid row, and RBAC enforcement.
+- **Frontend (`frontend/src/`):**
+  - Created dedicated `CustomersPage.jsx` (`/customers`, `customers.view`) and `SuppliersPage.jsx` (`/suppliers`, `suppliers.view`) with search, status filters, pagination, Create/Edit, Activate/Deactivate controls, and CSV template download / upload / paste import modals, registered in `navigation.js` and `router.jsx`.
+  - Upgraded `InventoryPage.jsx` with the **Import / Adjust CSV** modal (template download, `.csv` file upload or paste, optional Supplier/Customer link, atomic rollback row error list) and optional Supplier/Customer partner selector in the single Stock Movement modal.
+  - Extended `salesService.js`, `purchasingService.js`, `inventoryService.js`, bilingual EN/KM `translations.js`, and added `frontend/src/__tests__/partnersAndStockImport.test.jsx`.
+- **Documentation Updated:** `docs/API_DOCUMENTATION.md` and `docs/DEVELOPMENT_PROGRESS.md`.
+
+### User Profile Images & Crontab-Style Database/Media Backup to Telegram
+- **Backend (`backend/apps/accounts/`, `backend/apps/store_settings/`):**
+  - Added `User.avatar` (`ImageField` -> `avatars/%Y/%m/`, `accounts/migrations/0002_user_avatar.py`), 5 MB validation, absolute `avatar_url` serialization, `multipart/form-data` support + `remove_avatar` cleanup on `PATCH /api/v1/auth/me/` and `/api/v1/users/`.
+  - Created `BackupSetting` (singleton) and `BackupRun` models (`store_settings/migrations/0002_backuprun_backupsetting.py`) plus `backup_services.py`:
+    - Pure-Python 5-field crontab parser, validator, matcher, next-3-runs calculator, and server crontab line generator.
+    - Online SQLite (`sqlite3.Connection.backup` / transaction-safe `iterdump`) & PostgreSQL (`pg_dump`) database snapshot + `MEDIA_ROOT` images `.zip` archiver with `manifest.json` and local retention pruning (`1–50`).
+    - Telegram Bot API integration (`getMe`, `sendMessage`, `sendDocument`) via stdlib `urllib` with automatic 45 MB multi-part splitting and strict token masking (never returned raw in API responses or `AuditLog`).
+    - Added management command `python manage.py run_scheduled_backup [--force]` for real cron execution.
+  - Exposed `/api/v1/settings/backups/`, `/test-telegram/`, `/run/`, `/runs/`, and `/runs/{id}/download/` gated by `settings.view` / `settings.edit`.
+  - Added `backend/apps/store_settings/tests/test_avatar_and_backups.py`.
+- **Frontend (`frontend/src/`):**
+  - Added reusable `UserAvatar.jsx` integrated into `ProfilePage.jsx` (upload, live preview, remove photo), `HeaderControls.jsx` (both Vertical & Horizontal layouts), and `UsersPage.jsx` (table thumbnail + Create/Edit modal upload/remove).
+  - Created `backupService.js` and `BackupsPage.jsx` (`/backups` under Administration -> Backups & Telegram) with visual 5-field Crontab editor, quick schedule presets, timezone selector, Next Scheduled Runs preview, copyable crontab commands, DB/Media scope toggles, masked Telegram credentials + Test Telegram, Run Backup Now, and paginated Backup History with `.zip` download.
+  - Updated EN/KM `translations.js` (100% parity) and added `frontend/src/__tests__/profileAndBackups.test.jsx`.
+- **Documentation Updated:** `docs/DATABASE_SCHEMA.md`, `docs/API_DOCUMENTATION.md`, and `docs/DEVELOPMENT_PROGRESS.md`.
+
+## Observed Verification Results
 
 - `backend/.venv/bin/python backend/manage.py makemigrations --check --dry-run` — **PASS** (`No changes detected`).
-- `DJANGO_SETTINGS_MODULE=config.settings.prod ... manage.py check --deploy` — **PASS** (`System check identified no issues (0 silenced)` with >= 50-char secret).
-- `backend/.venv/bin/python backend/manage.py test apps -v 2` — **PASS** (**`62/62` backend tests passed** in `178.813s` across `accounts`, `audit`, `catalog`, `core`, `expenses`, `inventory` including multi-threaded concurrency, `purchasing`, `rbac`, `reports`, `sales`, and `store_settings`).
-- `npm --prefix frontend test` (`vitest run`) — **PASS** (**`38/38` frontend tests passed** across 11 files, including `i18nParity.test.js`).
-- `npm --prefix frontend run build` (`vite build`) — **PASS** (built in `6.09s` with **zero warnings**; largest chunk `react-vendor` at `219.58 kB` / `68.04 kB` gzip, app entry `index` at `99.13 kB` / `25.46 kB` gzip).
+- `backend/.venv/bin/python backend/manage.py check` — **PASS** (`System check identified no issues (0 silenced)`).
+- `backend/.venv/bin/python backend/manage.py test apps.store_settings apps.accounts -v 2` — **PASS** (**`15/15` tests passed** in `176.143s`, including `test_avatar_and_backups` `3/3`, `test_settings_and_audit` `2/2`, and `apps.accounts` `10/10`).
+- `npm --prefix frontend test` (`vitest run`) — **PASS** (**`43/43` frontend tests passed** across 13 files in `54.00s`, including `profileAndBackups.test.jsx` `2/2` and `i18nParity.test.js` `1/1`).
+- `npm --prefix frontend run build` (`vite build`) — **PASS** (built in `6.49s` with **zero warnings**; `ProfilePage` `6.77 kB`, `BackupsPage` `16.31 kB`, largest chunk `react-vendor` at `219.58 kB` / `68.04 kB` gzip).
 
 ## Status
 
-- All v1 POS phases (Phases 0–7) are complete and production-ready (`100/100` automated backend + frontend tests passing).
+- All v1 POS phases (Phases 0–7) plus Customer/Supplier Control, Atomic Bulk Stock Import, User Profile Images, and Crontab Telegram Backup Control are complete and verified.

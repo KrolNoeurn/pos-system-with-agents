@@ -39,3 +39,22 @@ export async function submitStockAdjustment(payload) {
   const response = await apiClient.post("/inventory/adjustments/", payload);
   return response.data;
 }
+
+export async function importAndAdjustStockCsv({ file, csvText, partnerType = "", partnerName = "" }) {
+  if (file instanceof File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (partnerType) formData.append("partner_type", partnerType);
+    if (partnerName) formData.append("partner_name", partnerName);
+    const response = await apiClient.post("/inventory/import-adjust/", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  }
+  const response = await apiClient.post("/inventory/import-adjust/", {
+    csv_text: csvText,
+    partner_type: partnerType,
+    partner_name: partnerName,
+  });
+  return response.data;
+}

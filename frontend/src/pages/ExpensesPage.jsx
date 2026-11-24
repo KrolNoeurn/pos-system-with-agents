@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import StatusAlert from "../components/StatusAlert";
 import {
   AppCard,
   AppModal,
@@ -871,7 +872,14 @@ export default function ExpensesPage() {
       >
         <form onSubmit={handleSaveExpense}>
           {expenseFormError ? (
-            <div className="alert alert-danger py-2 small">{expenseFormError}</div>
+            <StatusAlert
+              variant="danger"
+              message={expenseFormError}
+              autoHideMs={6000}
+              dismissible
+              onClose={() => setExpenseFormError("")}
+              className="py-2 small mb-3"
+            />
           ) : null}
           <div className="row g-3 mb-3">
             <div className="col-12 col-md-6">
@@ -971,7 +979,14 @@ export default function ExpensesPage() {
       >
         <form onSubmit={handleSaveCategory}>
           {categoryFormError ? (
-            <div className="alert alert-danger py-2 small">{categoryFormError}</div>
+            <StatusAlert
+              variant="danger"
+              message={categoryFormError}
+              autoHideMs={6000}
+              dismissible
+              onClose={() => setCategoryFormError("")}
+              className="py-2 small mb-3"
+            />
           ) : null}
           <FormInput
             id="exp-cat-name"

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -58,7 +59,7 @@ class LoginAPIView(APIView):
             {
                 "access": result["access"],
                 "refresh": result["refresh"],
-                "user": UserReadSerializer(result["user"]).data,
+                "user": UserReadSerializer(result["user"], context={"request": request}).data,
             },
             status=status.HTTP_200_OK,
         )
@@ -94,10 +95,14 @@ class LogoutAPIView(APIView):
 
 class MeAPIView(APIView):
     permission_classes = [IsActiveAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request: Request) -> Response:
         user = User.objects.prefetch_related("roles__permissions").get(pk=request.user.pk)
-        return Response(UserReadSerializer(user).data, status=status.HTTP_200_OK)
+        return Response(
+            UserReadSerializer(user, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     def patch(self, request: Request) -> Response:
         serializer = ProfileUpdateSerializer(data=request.data)
@@ -108,7 +113,10 @@ class MeAPIView(APIView):
             **serializer.validated_data,
         )
         refreshed = User.objects.prefetch_related("roles__permissions").get(pk=request.user.pk)
-        return Response(UserReadSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            UserReadSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class ChangePasswordAPIView(APIView):
@@ -130,6 +138,7 @@ class UserViewSet(ModelViewSet):
     """Protected user administration endpoints with server-side RBAC."""
 
     serializer_class = UserReadSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsActiveAuthenticated, HasRBACPermission]
     permission_map = {
         "GET": ("users.view",),
@@ -169,7 +178,10 @@ class UserViewSet(ModelViewSet):
             **serializer.validated_data,
         )
         refreshed = User.objects.prefetch_related("roles__permissions").get(pk=user.pk)
-        return Response(UserReadSerializer(refreshed).data, status=status.HTTP_201_CREATED)
+        return Response(
+            UserReadSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         instance = self.get_object()
@@ -182,7 +194,10 @@ class UserViewSet(ModelViewSet):
             **serializer.validated_data,
         )
         refreshed = User.objects.prefetch_related("roles__permissions").get(pk=instance.pk)
-        return Response(UserReadSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            UserReadSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         instance = self.get_object()
@@ -208,7 +223,10 @@ class UserViewSet(ModelViewSet):
             ip_address=get_client_ip(request),
         )
         refreshed = User.objects.prefetch_related("roles__permissions").get(pk=instance.pk)
-        return Response(UserReadSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            UserReadSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -225,7 +243,10 @@ class UserViewSet(ModelViewSet):
             ip_address=get_client_ip(request),
         )
         refreshed = User.objects.prefetch_related("roles__permissions").get(pk=instance.pk)
-        return Response(UserReadSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            UserReadSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -244,4 +265,7 @@ class UserViewSet(ModelViewSet):
             ip_address=get_client_ip(request),
         )
         refreshed = User.objects.prefetch_related("roles__permissions").get(pk=instance.pk)
-        return Response(UserReadSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            UserReadSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )

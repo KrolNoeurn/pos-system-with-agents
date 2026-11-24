@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AppCard,
   FormActions,
   FormInput,
   FormSelect,
   PageHeader,
+  UserAvatar,
 } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 import { usePreferences } from "../contexts/PreferencesContext";
 import { useToast } from "../contexts/ToastContext";
 import { changePassword, updateCurrentUserProfile } from "../services/authService";
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
 export default function ProfilePage() {
   const { user, refreshProfile } = useAuth();
@@ -28,6 +31,9 @@ export default function ProfilePage() {
 
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [phone, setPhone] = useState(user?.phone || "");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
+  const [removeAvatar, setRemoveAvatar] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -35,25 +41,83 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
 
+  useEffect(() => {
+    setFullName(user?.full_name || "");
+    setPhone(user?.phone || "");
+  }, [user?.full_name, user?.phone]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("profile.avatarInvalidType"));
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      toast.error(t("profile.avatarTooLarge"));
+      return;
+    }
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+    setAvatarFile(file);
+    setAvatarPreviewUrl(URL.createObjectURL(file));
+    setRemoveAvatar(false);
+  };
+
+  const handleRemoveAvatar = () => {
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+    setAvatarFile(null);
+    setAvatarPreviewUrl("");
+    setRemoveAvatar(true);
+  };
+
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setProfileSaving(true);
     try {
-      await updateCurrentUserProfile({
+      const payload = {
         full_name: fullName,
         phone,
         preferred_language: language,
         preferred_theme: theme,
         preferred_layout: layout,
-      });
+      };
+      if (avatarFile) {
+        payload.avatar = avatarFile;
+      } else if (removeAvatar) {
+        payload.remove_avatar = true;
+      }
+      await updateCurrentUserProfile(payload);
       await refreshProfile();
-      toast.success("Profile and preferences saved.");
+      setAvatarFile(null);
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+        setAvatarPreviewUrl("");
+      }
+      setRemoveAvatar(false);
+      toast.success(t("profile.savedToast"));
     } catch (err) {
       toast.error(err?.message || "Failed to update profile.");
     } finally {
       setProfileSaving(false);
     }
   };
+
+  const displayAvatarSrc = removeAvatar
+    ? ""
+    : avatarPreviewUrl || user?.avatar_url || user?.avatar || "";
+  const hasVisibleAvatar = Boolean(displayAvatarSrc);
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
@@ -90,8 +154,47 @@ export default function ProfilePage() {
 
       <div className="row g-4">
         <div className="col-12 col-lg-6">
-          <AppCard title="Profile & UI Preferences" icon="bi-person-badge" className="h-100">
+          <AppCard title={t("profile.cardTitle")} icon="bi-person-badge" className="h-100">
             <form onSubmit={handleProfileSubmit} className="d-flex flex-column gap-3">
+              <div className="d-flex flex-wrap align-items-center gap-3 p-3 rounded border bg-body-tertiary">
+                <UserAvatar user={user} src={displayAvatarSrc} size="lg" />
+                <div className="d-flex flex-column gap-2 flex-grow-1 min-w-0">
+                  <div>
+                    <div className="fw-semibold">{t("profile.photoTitle")}</div>
+                    <div className="small text-body-secondary">{t("profile.photoHint")}</div>
+                  </div>
+                  <div className="d-flex flex-wrap gap-2">
+                    <label
+                      htmlFor="profileAvatarInput"
+                      className={`btn btn-sm btn-outline-primary mb-0${profileSaving ? " disabled" : ""}`}
+                    >
+                      <i className="bi bi-camera me-1" aria-hidden="true" />
+                      {t("profile.uploadPhoto")}
+                    </label>
+                    <input
+                      id="profileAvatarInput"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="d-none"
+                      onChange={handleAvatarChange}
+                      disabled={profileSaving}
+                      aria-label={t("profile.uploadPhoto")}
+                    />
+                    {hasVisibleAvatar && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={handleRemoveAvatar}
+                        disabled={profileSaving}
+                      >
+                        <i className="bi bi-trash me-1" aria-hidden="true" />
+                        {t("profile.removePhoto")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <FormInput
                 id="profileUsername"
                 label="Username"

@@ -31,6 +31,13 @@ export const NAVIGATION_ITEMS = [
         to: "/sales",
         permission: "sales.view",
       },
+      {
+        id: "customers",
+        labelKey: "nav.customers",
+        icon: "bi-person-vcard",
+        to: "/customers",
+        permission: "customers.view",
+      },
     ],
   },
   {
@@ -87,6 +94,13 @@ export const NAVIGATION_ITEMS = [
         to: "/purchasing",
         permission: "purchases.view",
       },
+      {
+        id: "suppliers",
+        labelKey: "nav.suppliers",
+        icon: "bi-building",
+        to: "/suppliers",
+        permission: "suppliers.view",
+      },
     ],
   },
   {
@@ -134,6 +148,13 @@ export const NAVIGATION_ITEMS = [
         labelKey: "nav.settings",
         icon: "bi-gear",
         to: "/settings",
+        permission: "settings.view",
+      },
+      {
+        id: "backups",
+        labelKey: "nav.backups",
+        icon: "bi-cloud-arrow-up",
+        to: "/backups",
         permission: "settings.view",
       },
       {

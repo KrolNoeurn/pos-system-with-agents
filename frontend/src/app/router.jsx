@@ -16,9 +16,12 @@ const InventoryPage = lazy(() => import("../pages/InventoryPage"));
 const PurchasingPage = lazy(() => import("../pages/PurchasingPage"));
 const POSCheckoutPage = lazy(() => import("../pages/POSCheckoutPage"));
 const SalesPage = lazy(() => import("../pages/SalesPage"));
+const CustomersPage = lazy(() => import("../pages/CustomersPage"));
+const SuppliersPage = lazy(() => import("../pages/SuppliersPage"));
 const ExpensesPage = lazy(() => import("../pages/ExpensesPage"));
 const ReportsPage = lazy(() => import("../pages/ReportsPage"));
 const SettingsPage = lazy(() => import("../pages/SettingsPage"));
+const BackupsPage = lazy(() => import("../pages/BackupsPage"));
 const AuditLogsPage = lazy(() => import("../pages/AuditLogsPage"));
 const UnauthorizedPage = lazy(() => import("../pages/UnauthorizedPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
@@ -105,6 +108,22 @@ export const routeConfig = [
         ),
       },
       {
+        path: "customers",
+        element: (
+          <ProtectedRoute requiredPermission="customers.view">
+            {withSuspense(<CustomersPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "suppliers",
+        element: (
+          <ProtectedRoute requiredPermission="suppliers.view">
+            {withSuspense(<SuppliersPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "expenses",
         element: (
           <ProtectedRoute requiredPermission="expenses.view">
@@ -141,6 +160,14 @@ export const routeConfig = [
         element: (
           <ProtectedRoute requiredPermission="settings.view">
             {withSuspense(<SettingsPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "backups",
+        element: (
+          <ProtectedRoute requiredPermission="settings.view">
+            {withSuspense(<BackupsPage />)}
           </ProtectedRoute>
         ),
       },

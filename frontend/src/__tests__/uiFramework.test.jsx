@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import StatusAlert from "../components/StatusAlert";
 import { AppModal, DataTable, PageHeader } from "../components/ui";
 import { ConfirmProvider, useConfirm } from "../contexts/ConfirmContext";
 import { PreferencesProvider } from "../contexts/PreferencesContext";
@@ -139,9 +140,15 @@ describe("POS UI Framework", () => {
     expect(sidebar).not.toHaveClass("is-mini");
     expect(sidebar).not.toHaveClass("is-collapsed");
 
-    // Mobile drawer toggle
+    // Mobile drawer toggle & Escape key close (even when desktop sidebar was in mini mode)
+    fireEvent.click(cycleBtn); // switch to mini
+    expect(sidebar).toHaveClass("is-mini");
     fireEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
     expect(sidebar).toHaveClass("is-mobile-open");
+    // Labels remain in DOM for mobile drawer rendering (CSS hides them only on lg+ mini mode)
+    expect(screen.getByText("Administration")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(sidebar).not.toHaveClass("is-mobile-open");
   });
 
   it("enforces permission-based navigation menus (hides Administration when user lacks permissions)", () => {
@@ -162,21 +169,31 @@ describe("POS UI Framework", () => {
     expect(screen.getByText("Account")).toBeInTheDocument();
   });
 
-  it("supports Horizontal dropdown nested navigation and Khmer language switching", async () => {
+  it("supports Horizontal dropdown nested navigation, mobile toggle, right-edge alignment, and Khmer switching", async () => {
     window.localStorage.setItem("pos_ui_layout", "horizontal");
     renderShell(["/"]);
 
-    // Open Administration dropdown in Horizontal top menu
+    // Single HeaderControls mounted (no duplicate desktop/mobile instances)
+    expect(screen.getAllByRole("button", { name: "Toggle language" })).toHaveLength(1);
+
+    // Mobile menu button toggles responsive horizontal menubar
+    const menuBtn = screen.getByRole("button", { name: "Open navigation menu" });
+    expect(menuBtn).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(menuBtn);
+    expect(menuBtn).toHaveAttribute("aria-expanded", "true");
+
+    // Open Administration dropdown in Horizontal top menu (trailing group aligns right)
     fireEvent.click(screen.getByRole("button", { name: /Administration/i }));
     const rolesLink = screen.getByRole("link", { name: "Roles & Permissions" });
     expect(rolesLink).toBeInTheDocument();
+    expect(rolesLink.closest("ul")).toHaveClass("dropdown-menu-end");
 
     // Navigate via dropdown
     fireEvent.click(rolesLink);
     expect(screen.getByRole("heading", { name: "Shared Roles Content" })).toBeInTheDocument();
 
     // Switch language to Khmer
-    fireEvent.click(screen.getAllByRole("button", { name: "Toggle language" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Toggle language" }));
     expect(document.documentElement.getAttribute("lang")).toBe("km");
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /ការគ្រប់គ្រង/ })).toBeInTheDocument();
@@ -223,5 +240,62 @@ describe("POS UI Framework", () => {
     );
     expect(screen.getByText("Modal Header")).toBeInTheDocument();
     expect(screen.getByText("Modal Body")).toBeInTheDocument();
+  });
+
+  it("auto-hides Toast notifications and StatusAlert while pausing on hover", () => {
+    vi.useFakeTimers();
+    try {
+      const onClose = vi.fn();
+
+      function ToastTrigger() {
+        const toast = useToast();
+        return (
+          <button
+            type="button"
+            onClick={() => toast.success("Saved cleanly", "Done", 3000)}
+          >
+            Fire Auto Toast
+          </button>
+        );
+      }
+
+      render(
+        <ToastProvider>
+          <ToastTrigger />
+          <StatusAlert
+            variant="danger"
+            message="Transient validation error"
+            autoHideMs={4000}
+            dismissible
+            onClose={onClose}
+          />
+          <StatusAlert variant="info" message="Persistent info notice" />
+        </ToastProvider>
+      );
+
+      // Trigger toast and verify hover pauses auto-hide
+      fireEvent.click(screen.getByRole("button", { name: "Fire Auto Toast" }));
+      const toastEl = screen.getByRole("status");
+      expect(screen.getByText("Saved cleanly")).toBeInTheDocument();
+
+      fireEvent.mouseEnter(toastEl);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText("Saved cleanly")).toBeInTheDocument();
+
+      fireEvent.mouseLeave(toastEl);
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+      expect(screen.queryByText("Saved cleanly")).not.toBeInTheDocument();
+
+      // StatusAlert with autoHideMs={4000} already hid and invoked onClose, while persistent info stays
+      expect(screen.queryByText("Transient validation error")).not.toBeInTheDocument();
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Persistent info notice")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

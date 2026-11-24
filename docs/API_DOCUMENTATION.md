@@ -107,6 +107,7 @@
 | `POST` | `/api/v1/inventory/stock-in/` | `inventory.adjust` | Record inbound stock receipt with moving-average valuation update |
 | `POST` | `/api/v1/inventory/stock-out/` | `inventory.adjust` | Record outbound stock deduction (blocks negative stock unless `INVENTORY_ALLOW_NEGATIVE_STOCK=True`) |
 | `POST` | `/api/v1/inventory/adjustments/` | `inventory.adjust` | Record signed stock adjustment (`direction`: `increase`\|`decrease`, mandatory `notes`) |
+| `POST` | `/api/v1/inventory/import-adjust/` | `inventory.adjust` | Atomic bulk CSV stock import & adjustment (`sku,operation,quantity,unit_cost,reference_code,notes` + optional `partner_type`/`partner_name`); rolls back entire batch on any row error |
 | `GET` | `/api/v1/inventory/report/` | `inventory.view` or `reports.view` | Live inventory valuation report (totals, category valuation breakdown, movement summary by type) |
 
 ### Suppliers & Purchasing (`/api/v1/suppliers/`, `/api/v1/purchases/`)
@@ -115,6 +116,8 @@
 | Method | Endpoint | Required Permission | Purpose |
 | :--- | :--- | :--- | :--- |
 | `GET` / `POST` / `PATCH` | `/api/v1/suppliers/` | `suppliers.view` (or `purchases.view/create`) / `suppliers.create` / `suppliers.edit` | Manage supplier directory |
+| `POST` | `/api/v1/suppliers/{id}/activate/` & `/deactivate/` | `suppliers.edit` | Activate or deactivate supplier record |
+| `POST` | `/api/v1/suppliers/import-csv/` | `suppliers.create` | Atomically bulk import/update suppliers from CSV (`file` or `csv_text`) |
 | `GET` | `/api/v1/purchases/` | `purchases.view` | Paginated purchase history (`?search=`, `?supplier=`, `?status=draft\|ordered\|received\|cancelled`) |
 | `POST` | `/api/v1/purchases/` | `purchases.create` | Create Draft/Ordered purchase with server-side `Decimal` totals (stock unchanged) |
 | `GET` | `/api/v1/purchases/{id}/` | `purchases.view` | Retrieve purchase details & immutable line-item snapshots |
@@ -128,6 +131,8 @@
 | Method | Endpoint | Required Permission | Purpose |
 | :--- | :--- | :--- | :--- |
 | `GET` / `POST` / `PATCH` | `/api/v1/customers/` | `customers.view` (or `sales.view/create`) / `customers.create` / `customers.edit` | Manage customer directory (no hard delete) |
+| `POST` | `/api/v1/customers/{id}/activate/` & `/deactivate/` | `customers.edit` | Activate or deactivate customer record |
+| `POST` | `/api/v1/customers/import-csv/` | `customers.create` | Atomically bulk import/update customers from CSV (`file` or `csv_text`) |
 | `GET` | `/api/v1/sales/catalog/` | `sales.create` or `sales.view` | Active POS product lookup with barcode/SKU/name search, category filter, and read-only live stock availability |
 | `GET` | `/api/v1/sales/` | `sales.view` | Paginated sales history (`?search=`, `?status=`, `?payment_method=`, `?customer=`, `?date_from=`, `?date_to=`) |
 | `POST` | `/api/v1/sales/` | `sales.create` (+ `sales.discount` if `discount_amount > 0`) | Atomic POS checkout (`201 Created`; `200 OK` on idempotent replay; rolls back completely on insufficient stock) |
@@ -145,12 +150,19 @@
 | `POST` / `PATCH` / `DELETE` | `/api/v1/expenses/` | `expenses.create` / `expenses.edit` / `expenses.delete` | Record, edit, or delete operating expenses with full audit trail |
 | `GET` | `/api/v1/expenses/summary/` | `expenses.view` or `reports.view` | Exact `Decimal` cash flow summary (`sales_inflow`, `purchasing_outflow`, `expense_outflow`, `net_cash_flow`) and category/payment breakdowns (`?date_from=`, `?date_to=`) |
 
-### Store Settings (`/api/v1/settings/`)
+### Store Settings & Telegram Backup Control (`/api/v1/settings/`, `/api/v1/settings/backups/`)
 | Method | Endpoint | Required Permission | Purpose |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/settings/` | `settings.view` | Retrieve singleton store identity, currency/exchange rate, default tax, and receipt configuration |
 | `PATCH` / `PUT` | `/api/v1/settings/` | `settings.edit` | Atomically update store settings with validation and `settings.updated` audit log |
 | `GET` | `/api/v1/settings/receipt-profile/` | Authenticated (Active) | Read-only non-sensitive receipt branding subset (store name, phone, address, KHR rate, header/footer) used by POS cashiers |
+| `GET` / `PATCH` | `/api/v1/settings/backups/` | `settings.view` / `settings.edit` | Read or update crontab schedule, DB/media scope, retention count, and Telegram Bot configuration (token is write-only and masked in responses; returns next 3 scheduled runs and copyable server crontab lines) |
+| `POST` | `/api/v1/settings/backups/test-telegram/` | `settings.edit` | Verify Telegram Bot token (`getMe`) and send test message (`sendMessage`) |
+| `POST` | `/api/v1/settings/backups/run/` | `settings.edit` | Execute an immediate database + media `.zip` backup and optional Telegram delivery (auto-splits >45 MB archives) |
+| `GET` | `/api/v1/settings/backups/runs/` | `settings.view` | Paginated history of manual and scheduled backup executions |
+| `GET` | `/api/v1/settings/backups/runs/{id}/download/` | `settings.view` | Download retained local `.zip` backup archive (`backup.downloaded` audit log) |
+
+> **Profile Images:** `PATCH /api/v1/auth/me/` and `POST/PATCH /api/v1/users/` accept `multipart/form-data` with `avatar` (PNG/JPG/WebP <= 5 MB) or `remove_avatar=true`, and return `avatar` + absolute `avatar_url`.
 
 ### Dashboard KPIs & Reports (`/api/v1/reports/`)
 > All financial metrics use exact `Decimal` aggregation. CSV exports neutralize spreadsheet formula injection and log `report.exported` in `audit_logs`.

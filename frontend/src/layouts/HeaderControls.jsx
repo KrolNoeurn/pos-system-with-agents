@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { UserAvatar } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 import { usePreferences } from "../contexts/PreferencesContext";
 
@@ -43,16 +44,16 @@ export default function HeaderControls() {
   };
 
   return (
-    <div className="d-flex align-items-center gap-2 ms-auto">
+    <div className="d-flex align-items-center gap-1 gap-sm-2 ms-auto flex-shrink-0">
       <button
         type="button"
-        className="btn btn-sm btn-outline-secondary"
+        className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
         onClick={toggleLanguage}
         aria-label="Toggle language"
         title={language === "en" ? "Switch to Khmer" : "Switch to English"}
       >
-        <i className="bi bi-translate me-1" aria-hidden="true" />
-        <span>{language === "en" ? "EN" : "ខ្មែរ"}</span>
+        <i className="bi bi-translate" aria-hidden="true" />
+        <span className="ms-1 d-none d-sm-inline">{language === "en" ? "EN" : "ខ្មែរ"}</span>
       </button>
 
       <button
@@ -102,7 +103,7 @@ export default function HeaderControls() {
             aria-haspopup="menu"
             aria-label="User menu"
           >
-            <i className="bi bi-person-circle" aria-hidden="true" />
+            <UserAvatar user={user} size="sm" />
             <span className="d-none d-sm-inline text-truncate" style={{ maxWidth: "140px" }}>
               {user.full_name || user.username}
             </span>
@@ -114,9 +115,14 @@ export default function HeaderControls() {
               className="dropdown-menu dropdown-menu-end show pos-nav-dropdown-menu position-absolute end-0 mt-2 py-2"
               role="menu"
             >
-              <div className="px-3 py-2 border-bottom">
-                <div className="fw-semibold small">{user.full_name || user.username}</div>
-                <div className="text-body-secondary small">@{user.username}</div>
+              <div className="px-3 py-2 border-bottom d-flex align-items-center gap-2">
+                <UserAvatar user={user} size="md" />
+                <div className="min-w-0">
+                  <div className="fw-semibold small text-truncate">
+                    {user.full_name || user.username}
+                  </div>
+                  <div className="text-body-secondary small text-truncate">@{user.username}</div>
+                </div>
               </div>
               <Link
                 className="dropdown-item py-2"

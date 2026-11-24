@@ -169,12 +169,30 @@ def logout_user(*, actor: User, refresh_token_str: str | None, ip_address: str |
     )
 
 
+_UNSET = object()
+
+
+def _schedule_avatar_cleanup(old_storage, old_name: str) -> None:
+    if not old_name:
+        return
+
+    def _delete():
+        try:
+            old_storage.delete(old_name)
+        except Exception:
+            pass
+
+    transaction.on_commit(_delete)
+
+
 @transaction.atomic
 def update_own_profile(
     *,
     user: User,
     full_name: str | None = None,
     phone: str | None = None,
+    avatar=_UNSET,
+    remove_avatar: bool = False,
     preferred_language: str | None = None,
     preferred_theme: str | None = None,
     preferred_layout: str | None = None,
@@ -192,6 +210,26 @@ def update_own_profile(
         if value is not None and getattr(user, field_name) != value:
             setattr(user, field_name, value)
             updated_fields.append(field_name)
+
+    old_avatar_name = user.avatar.name if user.avatar else ""
+    old_avatar_storage = user.avatar.storage if user.avatar else None
+
+    if remove_avatar and not (avatar is not _UNSET and avatar is not None):
+        if user.avatar:
+            user.avatar = None
+            updated_fields.append("avatar")
+            _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+    elif avatar is not _UNSET:
+        if avatar is None:
+            if user.avatar:
+                user.avatar = None
+                updated_fields.append("avatar")
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+        else:
+            user.avatar = avatar
+            updated_fields.append("avatar")
+            if old_avatar_name:
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
 
     if updated_fields:
         user.save(update_fields=[*updated_fields, "updated_at"])
@@ -247,6 +285,7 @@ def create_user_account(
     password: str,
     full_name: str = "",
     phone: str = "",
+    avatar=None,
     is_active: bool = True,
     role_ids: list[int] | None = None,
     ip_address: str | None = None,
@@ -274,6 +313,7 @@ def create_user_account(
         password=password,
         full_name=full_name.strip(),
         phone=phone.strip(),
+        avatar=avatar,
         is_active=is_active,
     )
     if roles:
@@ -303,6 +343,8 @@ def update_user_account(
     email: str | None = None,
     full_name: str | None = None,
     phone: str | None = None,
+    avatar=_UNSET,
+    remove_avatar: bool = False,
     password: str | None = None,
     role_ids: list[int] | None = None,
     ip_address: str | None = None,
@@ -329,6 +371,25 @@ def update_user_account(
         if clean_phone != target.phone:
             target.phone = clean_phone
             updated_fields.append("phone")
+
+    old_avatar_name = target.avatar.name if target.avatar else ""
+    old_avatar_storage = target.avatar.storage if target.avatar else None
+    if remove_avatar and not (avatar is not _UNSET and avatar is not None):
+        if target.avatar:
+            target.avatar = None
+            updated_fields.append("avatar")
+            _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+    elif avatar is not _UNSET:
+        if avatar is None:
+            if target.avatar:
+                target.avatar = None
+                updated_fields.append("avatar")
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+        else:
+            target.avatar = avatar
+            updated_fields.append("avatar")
+            if old_avatar_name:
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
 
     if password:
         try:

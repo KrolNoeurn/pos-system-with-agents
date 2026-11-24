@@ -66,7 +66,13 @@ export default function LoginPage() {
           <div className="card-body p-4">
             {error && (
               <div className="mb-3">
-                <StatusAlert variant="danger" message={error} />
+                <StatusAlert
+                  variant="danger"
+                  message={error}
+                  autoHideMs={6000}
+                  dismissible
+                  onClose={() => setError("")}
+                />
               </div>
             )}
 

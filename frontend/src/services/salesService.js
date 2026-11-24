@@ -20,6 +20,29 @@ export async function updateCustomer(customerId, payload) {
   return response.data;
 }
 
+export async function activateCustomer(customerId) {
+  const response = await apiClient.post(`/customers/${customerId}/activate/`);
+  return response.data;
+}
+
+export async function deactivateCustomer(customerId) {
+  const response = await apiClient.post(`/customers/${customerId}/deactivate/`);
+  return response.data;
+}
+
+export async function importCustomersCsv(fileOrText) {
+  if (fileOrText instanceof File) {
+    const formData = new FormData();
+    formData.append("file", fileOrText);
+    const response = await apiClient.post("/customers/import-csv/", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  }
+  const response = await apiClient.post("/customers/import-csv/", { csv_text: fileOrText });
+  return response.data;
+}
+
 export async function fetchSales(params = {}) {
   const response = await apiClient.get("/sales/", { params });
   return response.data;

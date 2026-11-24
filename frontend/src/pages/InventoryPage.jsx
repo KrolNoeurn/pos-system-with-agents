@@ -22,13 +22,22 @@ import {
   fetchLowStockAlerts,
   fetchStockBalances,
   fetchStockMovements,
+  importAndAdjustStockCsv,
   submitOpeningStock,
   submitStockAdjustment,
   submitStockIn,
   submitStockOut,
 } from "../services/inventoryService";
+import { fetchSuppliers } from "../services/purchasingService";
+import { fetchCustomers } from "../services/salesService";
+import { extractApiError } from "../utils/apiError";
 
 const PAGE_SIZE = 10;
+
+const STOCK_CSV_TEMPLATE =
+  "sku,operation,quantity,unit_cost,reference_code,notes\n" +
+  "COF-01,stock_in,10,2.50,PO-001,Restock from supplier\n" +
+  "COF-01,decrease,1,,ADJ-01,Damaged item\n";
 
 const EMPTY_OP_FORM = {
   product: "",
@@ -36,8 +45,22 @@ const EMPTY_OP_FORM = {
   quantity: "",
   unit_cost: "",
   reference_code: "",
+  partnerType: "",
+  partnerName: "",
   notes: "",
 };
+
+function downloadStockCsvTemplate() {
+  const blob = new Blob([STOCK_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "inventory_import_adjust_template.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 function formatMoney(value) {
   if (value === null || value === undefined || value === "") return "$0.00";
@@ -61,6 +84,8 @@ export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState("balances"); // balances | movements | low_stock | report
   const [categories, setCategories] = useState([]);
   const [allTrackedProducts, setAllTrackedProducts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [customers, setCustomers] = useState([]);
 
   // Balances state
   const [balances, setBalances] = useState([]);
@@ -101,14 +126,27 @@ export default function InventoryPage() {
   const [opErrors, setOpErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Bulk CSV import & adjust modal state
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importText, setImportText] = useState("");
+  const [importPartnerType, setImportPartnerType] = useState("");
+  const [importPartnerName, setImportPartnerName] = useState("");
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+
   const loadLookups = useCallback(async () => {
     try {
-      const [catsResp, trackedResp] = await Promise.all([
-        fetchCategories({ page: 1, page_size: 100 }),
-        fetchStockBalances({ page: 1, page_size: 100 }),
+      const [catsResp, trackedResp, suppliersResp, customersResp] = await Promise.all([
+        fetchCategories({ page: 1, page_size: 100 }).catch(() => ({ results: [] })),
+        fetchStockBalances({ page: 1, page_size: 100 }).catch(() => ({ results: [] })),
+        fetchSuppliers({ page: 1, page_size: 100, is_active: "true" }).catch(() => ({ results: [] })),
+        fetchCustomers({ page: 1, page_size: 100, is_active: "true" }).catch(() => ({ results: [] })),
       ]);
-      setCategories(catsResp.results || catsResp);
-      setAllTrackedProducts(trackedResp.results || trackedResp);
+      setCategories(catsResp.results || catsResp || []);
+      setAllTrackedProducts(trackedResp.results || trackedResp || []);
+      setSuppliers(suppliersResp.results || suppliersResp || []);
+      setCustomers(customersResp.results || customersResp || []);
     } catch {
       // Non-blocking
     }
@@ -246,11 +284,22 @@ export default function InventoryPage() {
     setSubmitting(true);
     setOpErrors({});
     try {
+      const trimmedNotes = opForm.notes.trim();
+      const partnerTag =
+        opForm.partnerType && opForm.partnerName
+          ? `[${opForm.partnerType === "supplier" ? "Supplier" : "Customer"}: ${opForm.partnerName}]`
+          : "";
+      const combinedNotes = partnerTag
+        ? trimmedNotes
+          ? `${partnerTag} ${trimmedNotes}`
+          : partnerTag
+        : trimmedNotes;
+
       const basePayload = {
         product: Number(opForm.product),
         quantity: String(opForm.quantity).trim(),
         reference_code: opForm.reference_code.trim(),
-        notes: opForm.notes.trim(),
+        notes: combinedNotes,
       };
 
       if (opModalType === "opening") {
@@ -283,6 +332,53 @@ export default function InventoryPage() {
       toast.error(err?.message || "Inventory operation failed.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openImportModal = useCallback(() => {
+    setImportFile(null);
+    setImportText("");
+    setImportPartnerType("");
+    setImportPartnerName("");
+    setImportErrors([]);
+    setImportModalOpen(true);
+  }, []);
+
+  const handleSubmitImport = async (event) => {
+    event.preventDefault();
+    if (!importFile && !importText.trim()) {
+      setImportErrors([t("inventory.importFileLabel")]);
+      return;
+    }
+
+    setImporting(true);
+    setImportErrors([]);
+    try {
+      const result = await importAndAdjustStockCsv({
+        file: importFile,
+        csvText: importText,
+        partnerType: importPartnerType,
+        partnerName: importPartnerName,
+      });
+      const count = result?.processed_count ?? 0;
+      toast.success(`${t("inventory.importSuccessToast")} (${count})`);
+      setImportModalOpen(false);
+      await Promise.all([
+        loadBalances(),
+        loadLowStockAlerts(),
+        activeTab === "movements" ? loadMovements() : Promise.resolve(),
+        activeTab === "report" ? loadReport() : Promise.resolve(),
+      ]);
+    } catch (err) {
+      const apiRows = err?.errors?.rows || err?.response?.data?.errors?.rows;
+      if (Array.isArray(apiRows) && apiRows.length > 0) {
+        setImportErrors(apiRows.map((item) => String(item)));
+      } else {
+        setImportErrors([extractApiError(err, "Bulk stock import failed.")]);
+      }
+      toast.error(extractApiError(err, "Bulk stock import failed."));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -610,6 +706,14 @@ export default function InventoryPage() {
               >
                 <i className="bi bi-sliders me-1" aria-hidden="true" />
                 {t("inventory.opAdjustment")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={openImportModal}
+              >
+                <i className="bi bi-upload me-1" aria-hidden="true" />
+                {t("inventory.opImportCsv")}
               </button>
             </>
           )
@@ -1047,6 +1151,43 @@ export default function InventoryPage() {
             disabled={submitting}
           />
 
+          <div className="row g-3">
+            <div className="col-12 col-sm-6">
+              <FormSelect
+                id="invPartnerType"
+                label={t("inventory.partnerTypeLabel")}
+                value={opForm.partnerType}
+                onChange={(e) =>
+                  setOpForm({ ...opForm, partnerType: e.target.value, partnerName: "" })
+                }
+                options={[
+                  { value: "", label: t("inventory.partnerNone") },
+                  { value: "supplier", label: t("inventory.partnerSupplier") },
+                  { value: "customer", label: t("inventory.partnerCustomer") },
+                ]}
+                disabled={submitting}
+              />
+            </div>
+            {opForm.partnerType && (
+              <div className="col-12 col-sm-6">
+                <FormSelect
+                  id="invPartnerName"
+                  label={t("inventory.selectPartner")}
+                  value={opForm.partnerName}
+                  onChange={(e) => setOpForm({ ...opForm, partnerName: e.target.value })}
+                  options={[
+                    { value: "", label: t("inventory.selectPartner") },
+                    ...(opForm.partnerType === "supplier" ? suppliers : customers).map((p) => ({
+                      value: p.name,
+                      label: p.phone ? `${p.name} (${p.phone})` : p.name,
+                    })),
+                  ]}
+                  disabled={submitting}
+                />
+              </div>
+            )}
+          </div>
+
           <FormTextarea
             id="invNotes"
             label={t("inventory.notesLabel")}
@@ -1065,6 +1206,116 @@ export default function InventoryPage() {
               submittingLabel={t("controls.saving")}
               cancelLabel={t("controls.cancel")}
               onCancel={() => setOpModalType(null)}
+            />
+          </div>
+        </form>
+      </AppModal>
+
+      {/* Bulk Stock Import & Adjust (CSV) Modal */}
+      <AppModal
+        isOpen={importModalOpen}
+        title={t("inventory.importModalTitle")}
+        size="lg"
+        onClose={() => setImportModalOpen(false)}
+        disableClose={importing}
+      >
+        <form onSubmit={handleSubmitImport} noValidate className="d-flex flex-column gap-3">
+          <StatusAlert variant="info" message={t("inventory.importNotice")} />
+
+          {importErrors.length > 0 && (
+            <div className="alert alert-danger mb-0 py-2 small" role="alert">
+              <ul className="mb-0 ps-3">
+                {importErrors.map((msg, idx) => (
+                  <li key={idx}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div className="small text-body-secondary">
+              <code>sku,operation,quantity,unit_cost,reference_code,notes</code>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={downloadStockCsvTemplate}
+              disabled={importing}
+            >
+              <i className="bi bi-download me-1" aria-hidden="true" />
+              {t("inventory.downloadTemplate")}
+            </button>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-12 col-sm-6">
+              <FormSelect
+                id="invImportPartnerType"
+                label={t("inventory.partnerTypeLabel")}
+                value={importPartnerType}
+                onChange={(e) => {
+                  setImportPartnerType(e.target.value);
+                  setImportPartnerName("");
+                }}
+                options={[
+                  { value: "", label: t("inventory.partnerNone") },
+                  { value: "supplier", label: t("inventory.partnerSupplier") },
+                  { value: "customer", label: t("inventory.partnerCustomer") },
+                ]}
+                disabled={importing}
+              />
+            </div>
+            {importPartnerType && (
+              <div className="col-12 col-sm-6">
+                <FormSelect
+                  id="invImportPartnerName"
+                  label={t("inventory.selectPartner")}
+                  value={importPartnerName}
+                  onChange={(e) => setImportPartnerName(e.target.value)}
+                  options={[
+                    { value: "", label: t("inventory.selectPartner") },
+                    ...(importPartnerType === "supplier" ? suppliers : customers).map((p) => ({
+                      value: p.name,
+                      label: p.phone ? `${p.name} (${p.phone})` : p.name,
+                    })),
+                  ]}
+                  disabled={importing}
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="invImportFile" className="form-label small fw-medium mb-1">
+              {t("inventory.importFileLabel")}
+            </label>
+            <input
+              id="invImportFile"
+              type="file"
+              accept=".csv,text/csv"
+              className="form-control form-control-sm"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              disabled={importing}
+            />
+          </div>
+
+          <FormTextarea
+            id="invImportText"
+            label={t("inventory.importPasteLabel")}
+            rows={5}
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder={STOCK_CSV_TEMPLATE}
+            disabled={importing}
+          />
+
+          <div className="pt-2 border-top">
+            <FormActions
+              submitting={importing}
+              submitLabel={t("inventory.importButton")}
+              submittingLabel={t("inventory.importing")}
+              cancelLabel={t("controls.cancel")}
+              onCancel={() => setImportModalOpen(false)}
             />
           </div>
         </form>

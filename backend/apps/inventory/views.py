@@ -23,6 +23,7 @@ from apps.inventory.serializers import (
 )
 from apps.inventory.services import (
     get_inventory_valuation_report,
+    import_and_adjust_stock_csv,
     record_opening_stock,
     record_stock_adjustment,
     record_stock_in,
@@ -220,6 +221,28 @@ class StockAdjustmentAPIView(APIView):
             "product", "product__unit", "created_by"
         ).get(pk=movement.pk)
         return Response(StockMovementSerializer(refreshed).data, status=status.HTTP_201_CREATED)
+
+
+class StockImportAdjustAPIView(APIView):
+    """Atomic bulk CSV stock import and adjustment routed strictly through inventory services."""
+
+    permission_classes = [IsActiveAuthenticated, require_permission("inventory.adjust")]
+
+    def post(self, request: Request) -> Response:
+        uploaded = request.FILES.get("file")
+        if uploaded is not None:
+            csv_text = uploaded.read().decode("utf-8-sig", errors="replace")
+        else:
+            csv_text = str(request.data.get("csv_text") or "")
+
+        result = import_and_adjust_stock_csv(
+            actor=request.user,
+            csv_text=csv_text,
+            partner_type=str(request.data.get("partner_type") or ""),
+            partner_name=str(request.data.get("partner_name") or ""),
+            ip_address=get_client_ip(request),
+        )
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class InventoryReportAPIView(APIView):

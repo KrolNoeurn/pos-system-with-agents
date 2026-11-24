@@ -18,6 +18,7 @@ export default function VerticalLayout() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => ({
+    "sales-pos": true,
     administration: true,
     account: false,
   }));
@@ -40,6 +41,18 @@ export default function VerticalLayout() {
       return next;
     });
   }, [location.pathname, navItems]);
+
+  // Close mobile drawer on Escape for keyboard accessibility
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
 
   const toggleGroup = (groupId) => {
     setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -68,14 +81,24 @@ export default function VerticalLayout() {
       )}
 
       <aside className={sidebarClassName} aria-label="Sidebar navigation">
-        <Link to="/" className="pos-sidebar-brand" title={THEME_CONFIG.appName}>
-          <i className="bi bi-shop fs-4 text-primary flex-shrink-0" aria-hidden="true" />
-          {!isMini && (
-            <div className="min-w-0">
-              <div className="text-truncate">{THEME_CONFIG.appName}</div>
-            </div>
-          )}
-        </Link>
+        <div className="pos-sidebar-brand justify-content-between">
+          <Link
+            to="/"
+            className="d-flex align-items-center gap-2 text-decoration-none text-reset min-w-0"
+            title={THEME_CONFIG.appName}
+          >
+            <i className="bi bi-shop fs-4 text-primary flex-shrink-0" aria-hidden="true" />
+            <span className="pos-sidebar-label text-truncate">{THEME_CONFIG.appName}</span>
+          </Link>
+          <button
+            type="button"
+            className="btn btn-sm btn-link text-body-secondary p-1 d-lg-none"
+            onClick={() => setMobileOpen(false)}
+            aria-label={t("controls.close")}
+          >
+            <i className="bi bi-x-lg" aria-hidden="true" />
+          </button>
+        </div>
 
         <nav className="pos-sidebar-nav d-flex flex-column gap-1">
           {navItems.map((item) => {
@@ -95,17 +118,13 @@ export default function VerticalLayout() {
                     title={isMini ? label : undefined}
                   >
                     <i className={`bi ${item.icon} flex-shrink-0`} aria-hidden="true" />
-                    {!isMini && (
-                      <>
-                        <span className="flex-grow-1 text-truncate">{label}</span>
-                        <i
-                          className={`bi ${
-                            expanded ? "bi-chevron-down" : "bi-chevron-right"
-                          } small`}
-                          aria-hidden="true"
-                        />
-                      </>
-                    )}
+                    <span className="pos-sidebar-label flex-grow-1 text-truncate">{label}</span>
+                    <i
+                      className={`pos-sidebar-label bi ${
+                        expanded ? "bi-chevron-down" : "bi-chevron-right"
+                      } small`}
+                      aria-hidden="true"
+                    />
                   </button>
 
                   {expanded && (
@@ -122,7 +141,7 @@ export default function VerticalLayout() {
                             title={isMini ? childLabel : undefined}
                           >
                             <i className={`bi ${child.icon} flex-shrink-0`} aria-hidden="true" />
-                            {!isMini && <span className="text-truncate">{childLabel}</span>}
+                            <span className="pos-sidebar-label text-truncate">{childLabel}</span>
                           </NavLink>
                         );
                       })}
@@ -141,24 +160,22 @@ export default function VerticalLayout() {
                 title={isMini ? label : undefined}
               >
                 <i className={`bi ${item.icon} flex-shrink-0`} aria-hidden="true" />
-                {!isMini && <span className="text-truncate">{label}</span>}
+                <span className="pos-sidebar-label text-truncate">{label}</span>
               </NavLink>
             );
           })}
         </nav>
 
-        {!isMini && (
-          <div className="p-3 border-top small text-body-secondary">
-            {t("app.subtitle")}
-          </div>
-        )}
+        <div className="pos-sidebar-label p-3 border-top small text-body-secondary">
+          {t("app.subtitle")}
+        </div>
       </aside>
 
       <div className="pos-vertical-main">
         <header className="pos-topbar">
           <button
             type="button"
-            className="btn btn-sm btn-outline-secondary d-lg-none"
+            className="btn btn-sm btn-outline-secondary d-lg-none flex-shrink-0"
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={t("controls.openMenu")}
             aria-expanded={mobileOpen}
@@ -168,7 +185,7 @@ export default function VerticalLayout() {
 
           <button
             type="button"
-            className="btn btn-sm btn-outline-secondary d-none d-lg-inline-flex align-items-center"
+            className="btn btn-sm btn-outline-secondary d-none d-lg-inline-flex align-items-center flex-shrink-0"
             onClick={cycleSidebarMode}
             aria-label={t("controls.cycleSidebar")}
             title={
@@ -191,14 +208,18 @@ export default function VerticalLayout() {
             />
           </button>
 
-          <div className="d-none d-sm-block min-w-0">
+          <div className="d-none d-md-block min-w-0 flex-grow-1 overflow-hidden">
             <Breadcrumbs />
           </div>
 
           <HeaderControls />
         </header>
 
-        <main className="flex-grow-1 py-4 px-3 px-md-4">
+        <div className="d-md-none px-3 py-2 border-bottom bg-body-tertiary">
+          <Breadcrumbs />
+        </div>
+
+        <main className="flex-grow-1 py-3 py-md-4 px-3 px-md-4">
           <div className="container-fluid px-0">
             <Outlet />
           </div>

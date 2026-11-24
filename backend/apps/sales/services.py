@@ -1,6 +1,8 @@
 """Transactional POS checkout, cancellation, refund, and customer business services."""
 
+import csv
 from decimal import Decimal, ROUND_HALF_UP
+import io
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -157,6 +159,106 @@ def update_customer(
             metadata={"changed_fields": changed_fields, "name": customer.name},
         )
     return customer
+
+
+def _parse_bool_cell(raw: str | None, default: bool = True) -> bool:
+    if raw is None or not str(raw).strip():
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "active", "y"}
+
+
+@transaction.atomic
+def import_customers_csv(
+    *,
+    actor,
+    csv_text: str,
+    ip_address: str | None = None,
+) -> dict[str, Any]:
+    """
+    Atomically import or update Customers from CSV text.
+    Expected columns: name (required), phone, email, address, notes, is_active.
+    """
+    clean_text = (csv_text or "").lstrip("\ufeff").strip()
+    if not clean_text:
+        raise ValidationError({"file": ["CSV content cannot be empty."]})
+
+    reader = csv.DictReader(io.StringIO(clean_text))
+    if not reader.fieldnames:
+        raise ValidationError({"file": ["CSV header row is required (must include 'name')."]})
+
+    headers = {h.strip().lower() for h in reader.fieldnames if h}
+    if "name" not in headers:
+        raise ValidationError({"file": ["CSV must include a 'name' column."]})
+
+    created_count = 0
+    updated_count = 0
+    row_errors: list[str] = []
+    rows = list(reader)
+    if not rows:
+        raise ValidationError({"file": ["CSV contains no data rows."]})
+
+    for idx, raw_row in enumerate(rows, start=2):
+        norm = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items()}
+        name = norm.get("name", "")
+        phone = norm.get("phone", "")
+        email = norm.get("email", "")
+        address = norm.get("address", "")
+        notes = norm.get("notes", "")
+        is_active = _parse_bool_cell(norm.get("is_active"), default=True)
+
+        if not name:
+            row_errors.append(f"Row {idx}: customer name is required.")
+            continue
+        if email and "@" not in email:
+            row_errors.append(f"Row {idx}: invalid email '{email}'.")
+            continue
+
+        existing = Customer.objects.filter(name__iexact=name).first()
+        if existing is None and phone:
+            existing = Customer.objects.filter(phone=phone).first()
+
+        if existing is not None:
+            update_customer(
+                actor=actor,
+                customer=existing,
+                name=name,
+                phone=phone or existing.phone,
+                email=email or existing.email,
+                address=address or existing.address,
+                notes=notes or existing.notes,
+                is_active=is_active,
+                ip_address=ip_address,
+            )
+            updated_count += 1
+        else:
+            create_customer(
+                actor=actor,
+                name=name,
+                phone=phone,
+                email=email,
+                address=address,
+                notes=notes,
+                is_active=is_active,
+                ip_address=ip_address,
+            )
+            created_count += 1
+
+    if row_errors:
+        raise ValidationError({"rows": row_errors})
+
+    log_audit_event(
+        actor=actor,
+        action="customer.imported",
+        target_type="Customer",
+        target_id="bulk",
+        ip_address=ip_address,
+        metadata={"created_count": created_count, "updated_count": updated_count},
+    )
+    return {
+        "created_count": created_count,
+        "updated_count": updated_count,
+        "total_processed": created_count + updated_count,
+    }
 
 
 def _prepare_sale_lines(

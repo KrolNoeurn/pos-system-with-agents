@@ -8,15 +8,15 @@ export default function Breadcrumbs() {
   const crumbs = resolveBreadcrumbs(location.pathname);
 
   return (
-    <nav aria-label="Breadcrumb">
-      <ol className="breadcrumb mb-0 small">
+    <nav aria-label="Breadcrumb" className="min-w-0">
+      <ol className="breadcrumb mb-0 small flex-nowrap overflow-hidden">
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
           const label = t(crumb.labelKey);
           return (
             <li
               key={`${crumb.labelKey}-${index}`}
-              className={`breadcrumb-item${isLast ? " active fw-medium" : ""}`}
+              className={`breadcrumb-item text-truncate${isLast ? " active fw-medium" : ""}`}
               aria-current={isLast ? "page" : undefined}
             >
               {isLast || !crumb.to ? (

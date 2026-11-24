@@ -6,6 +6,7 @@ import {
   FormActions,
   FormInput,
   PageHeader,
+  UserAvatar,
 } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 import { useConfirm } from "../contexts/ConfirmContext";
@@ -29,6 +30,8 @@ const EMPTY_FORM = {
   phone: "",
   password: "",
   role_ids: [],
+  avatar: null,
+  remove_avatar: false,
 };
 
 export default function UsersPage() {
@@ -95,6 +98,8 @@ export default function UsersPage() {
       phone: target.phone || "",
       password: "",
       role_ids: (target.roles || []).map((r) => r.id),
+      avatar: null,
+      remove_avatar: false,
     });
     setModalOpen(true);
   }, []);
@@ -122,18 +127,27 @@ export default function UsersPage() {
           phone: formData.phone,
         };
         if (formData.password) payload.password = formData.password;
+        if (formData.avatar instanceof File) {
+          payload.avatar = formData.avatar;
+        } else if (formData.remove_avatar) {
+          payload.remove_avatar = true;
+        }
         await updateUser(editingUser.id, payload);
         await assignUserRoles(editingUser.id, formData.role_ids);
         toast.success(`Updated user '${editingUser.username}'.`);
       } else {
-        await createUser({
+        const payload = {
           username: formData.username,
           email: formData.email,
           full_name: formData.full_name,
           phone: formData.phone,
           password: formData.password,
           role_ids: formData.role_ids,
-        });
+        };
+        if (formData.avatar instanceof File) {
+          payload.avatar = formData.avatar;
+        }
+        await createUser(payload);
         toast.success(`Created user '${formData.username}'.`);
       }
       setModalOpen(false);
@@ -207,15 +221,18 @@ export default function UsersPage() {
         key: "user",
         header: "User",
         render: (u) => (
-          <div>
-            <div className="fw-semibold">
-              {u.full_name || u.username}
-              {u.is_system_account && (
-                <span className="badge text-bg-dark ms-2">System</span>
-              )}
-            </div>
-            <div className="small text-body-secondary">
-              @{u.username} · {u.email}
+          <div className="d-flex align-items-center gap-2">
+            <UserAvatar user={u} size="md" />
+            <div>
+              <div className="fw-semibold">
+                {u.full_name || u.username}
+                {u.is_system_account && (
+                  <span className="badge text-bg-dark ms-2">System</span>
+                )}
+              </div>
+              <div className="small text-body-secondary">
+                @{u.username} · {u.email}
+              </div>
             </div>
           </div>
         ),
@@ -418,6 +435,49 @@ export default function UsersPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 disabled={saving}
               />
+            </div>
+            <div className="col-12">
+              <label htmlFor="userAvatar" className="form-label fw-medium">
+                {t("profile.photoTitle")}
+              </label>
+              <div className="d-flex flex-wrap align-items-center gap-3">
+                <UserAvatar
+                  user={editingUser || { username: formData.username, full_name: formData.full_name }}
+                  src={
+                    formData.remove_avatar
+                      ? ""
+                      : formData.avatar instanceof File
+                        ? URL.createObjectURL(formData.avatar)
+                        : editingUser?.avatar_url || ""
+                  }
+                  size="md"
+                />
+                <input
+                  id="userAvatar"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="form-control form-control-sm"
+                  style={{ maxWidth: "280px" }}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      avatar: e.target.files?.[0] || null,
+                      remove_avatar: false,
+                    })
+                  }
+                  disabled={saving}
+                />
+                {editingUser?.avatar_url && !formData.remove_avatar && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => setFormData({ ...formData, avatar: null, remove_avatar: true })}
+                    disabled={saving}
+                  >
+                    {t("profile.removePhoto")}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="col-12">
               <FormInput

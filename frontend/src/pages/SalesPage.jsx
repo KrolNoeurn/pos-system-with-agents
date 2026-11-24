@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import StatusAlert from "../components/StatusAlert";
 import ReceiptModal from "../components/sales/ReceiptModal";
 import {
   AppCard,
@@ -601,7 +602,16 @@ export default function SalesPage() {
           >
             {actionModal?.type === "cancel" ? t("sales.cancelNotice") : t("sales.refundNotice")}
           </div>
-          {actionError ? <div className="alert alert-danger py-2 small">{actionError}</div> : null}
+          {actionError ? (
+            <StatusAlert
+              variant="danger"
+              message={actionError}
+              autoHideMs={6000}
+              dismissible
+              onClose={() => setActionError("")}
+              className="py-2 small mb-3"
+            />
+          ) : null}
           <FormTextarea
             id="sale-action-reason"
             className="mb-3"
@@ -631,7 +641,14 @@ export default function SalesPage() {
       >
         <form onSubmit={handleSaveCustomer}>
           {customerFormError ? (
-            <div className="alert alert-danger py-2 small">{customerFormError}</div>
+            <StatusAlert
+              variant="danger"
+              message={customerFormError}
+              autoHideMs={6000}
+              dismissible
+              onClose={() => setCustomerFormError("")}
+              className="py-2 small mb-3"
+            />
           ) : null}
           <FormInput
             id="customer-name"

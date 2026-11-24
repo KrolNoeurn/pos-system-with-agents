@@ -5,13 +5,31 @@ export async function fetchUsers(params = {}) {
   return response.data;
 }
 
+function buildUserPayload(payload) {
+  if (payload?.avatar instanceof File) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (Array.isArray(value)) {
+        value.forEach((item) => formData.append(key, String(item)));
+      } else {
+        formData.append(key, value);
+      }
+    });
+    return { body: formData, config: { headers: { "Content-Type": "multipart/form-data" } } };
+  }
+  return { body: payload, config: undefined };
+}
+
 export async function createUser(payload) {
-  const response = await apiClient.post("/users/", payload);
+  const { body, config } = buildUserPayload(payload);
+  const response = await apiClient.post("/users/", body, config);
   return response.data;
 }
 
 export async function updateUser(userId, payload) {
-  const response = await apiClient.patch(`/users/${userId}/`, payload);
+  const { body, config } = buildUserPayload(payload);
+  const response = await apiClient.patch(`/users/${userId}/`, body, config);
   return response.data;
 }
 

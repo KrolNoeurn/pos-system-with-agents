@@ -1,6 +1,8 @@
 """Transactional inventory movement, balance synchronization, and valuation services."""
 
-from decimal import Decimal, ROUND_HALF_UP
+import csv
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+import io
 from typing import Any
 
 from django.conf import settings
@@ -313,6 +315,196 @@ def record_stock_adjustment(
         notes=notes,
         ip_address=ip_address,
     )
+
+
+def _extract_error_message(exc: Exception) -> str:
+    detail = getattr(exc, "detail", None)
+    if isinstance(detail, dict):
+        for val in detail.values():
+            if isinstance(val, list) and val:
+                return str(val[0])
+            return str(val)
+    if isinstance(detail, list) and detail:
+        return str(detail[0])
+    return str(detail or exc)
+
+
+@transaction.atomic
+def import_and_adjust_stock_csv(
+    *,
+    actor,
+    csv_text: str,
+    partner_type: str = "",
+    partner_name: str = "",
+    ip_address: str | None = None,
+) -> dict[str, Any]:
+    """
+    Atomically process bulk inventory imports and stock adjustments from CSV.
+
+    Columns: sku, operation (opening|stock_in|stock_out|increase|decrease),
+             quantity, unit_cost (optional), reference_code (optional), notes (required for increase/decrease).
+
+    Every line passes strictly through `record_stock_movement` inside a single
+    `transaction.atomic()` block so any row error rolls back the entire batch.
+    """
+    clean_text = (csv_text or "").lstrip("\ufeff").strip()
+    if not clean_text:
+        raise ValidationError({"file": ["CSV content cannot be empty."]})
+
+    reader = csv.DictReader(io.StringIO(clean_text))
+    if not reader.fieldnames:
+        raise ValidationError(
+            {"file": ["CSV header row is required (sku, operation, quantity)."]}
+        )
+
+    headers = {h.strip().lower() for h in reader.fieldnames if h}
+    required_cols = {"sku", "operation", "quantity"}
+    missing = sorted(required_cols - headers)
+    if missing:
+        raise ValidationError(
+            {"file": [f"CSV is missing required column(s): {', '.join(missing)}."]}
+        )
+
+    rows = list(reader)
+    if not rows:
+        raise ValidationError({"file": ["CSV contains no data rows."]})
+
+    op_aliases = {
+        "opening": ("opening", None),
+        "opening_stock": ("opening", None),
+        "stock_in": ("stock_in", None),
+        "in": ("stock_in", None),
+        "import": ("stock_in", None),
+        "stock_out": ("stock_out", None),
+        "out": ("stock_out", None),
+        "increase": ("adjustment", "increase"),
+        "adjust_in": ("adjustment", "increase"),
+        "decrease": ("adjustment", "decrease"),
+        "adjust_out": ("adjustment", "decrease"),
+    }
+
+    partner_prefix = ""
+    clean_p_type = (partner_type or "").strip().lower()
+    clean_p_name = (partner_name or "").strip()
+    if clean_p_name:
+        label = "Supplier" if clean_p_type == "supplier" else "Customer" if clean_p_type == "customer" else "Partner"
+        partner_prefix = f"[{label}: {clean_p_name}] "
+
+    row_errors: list[str] = []
+    created_movements: list[StockMovement] = []
+
+    for idx, raw_row in enumerate(rows, start=2):
+        norm = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items()}
+        sku = norm.get("sku", "")
+        raw_op = norm.get("operation", "").lower()
+        raw_qty = norm.get("quantity", "")
+        raw_cost = norm.get("unit_cost", "")
+        ref_code = norm.get("reference_code", "")
+        raw_notes = norm.get("notes", "")
+
+        if not sku:
+            row_errors.append(f"Row {idx}: SKU is required.")
+            continue
+
+        product = Product.objects.select_related("unit").filter(sku__iexact=sku).first()
+        if product is None:
+            row_errors.append(f"Row {idx}: product with SKU '{sku}' not found.")
+            continue
+
+        op_spec = op_aliases.get(raw_op)
+        if op_spec is None:
+            row_errors.append(
+                f"Row {idx}: invalid operation '{raw_op}'. Use opening, stock_in, stock_out, increase, or decrease."
+            )
+            continue
+
+        try:
+            qty = Decimal(raw_qty)
+        except (InvalidOperation, ValueError):
+            row_errors.append(f"Row {idx}: invalid quantity '{raw_qty}'.")
+            continue
+
+        unit_cost = None
+        if raw_cost:
+            try:
+                unit_cost = Decimal(raw_cost)
+            except (InvalidOperation, ValueError):
+                row_errors.append(f"Row {idx}: invalid unit_cost '{raw_cost}'.")
+                continue
+
+        # Only proceed with movement execution if no errors yet; otherwise continue validating rows
+        if row_errors:
+            continue
+
+        kind, direction = op_spec
+        combined_notes = f"{partner_prefix}{raw_notes}".strip()
+
+        try:
+            if kind == "opening":
+                mv = record_opening_stock(
+                    actor=actor,
+                    product=product,
+                    quantity=qty,
+                    unit_cost=unit_cost,
+                    reference_code=ref_code or "CSV-IMPORT",
+                    notes=combined_notes or "CSV opening stock import",
+                    ip_address=ip_address,
+                )
+            elif kind == "stock_in":
+                mv = record_stock_in(
+                    actor=actor,
+                    product=product,
+                    quantity=qty,
+                    unit_cost=unit_cost,
+                    reference_type="CSV_IMPORT",
+                    reference_code=ref_code or "CSV-IMPORT",
+                    notes=combined_notes or "CSV stock import",
+                    ip_address=ip_address,
+                )
+            elif kind == "stock_out":
+                mv = record_stock_out(
+                    actor=actor,
+                    product=product,
+                    quantity=qty,
+                    reference_type="CSV_IMPORT",
+                    reference_code=ref_code or "CSV-ADJUST",
+                    notes=combined_notes or "CSV stock out",
+                    ip_address=ip_address,
+                )
+            else:
+                mv = record_stock_adjustment(
+                    actor=actor,
+                    product=product,
+                    direction=direction,
+                    quantity=qty,
+                    unit_cost=unit_cost,
+                    reference_code=ref_code or "CSV-ADJUST",
+                    notes=combined_notes,
+                    ip_address=ip_address,
+                )
+            created_movements.append(mv)
+        except (ValidationError, OpeningStockAlreadyExistsError) as exc:
+            row_errors.append(f"Row {idx} ({sku}): {_extract_error_message(exc)}")
+
+    if row_errors:
+        raise ValidationError({"rows": row_errors})
+
+    log_audit_event(
+        actor=actor,
+        action="inventory.bulk_imported",
+        target_type="StockMovement",
+        target_id="bulk",
+        ip_address=ip_address,
+        metadata={
+            "processed_count": len(created_movements),
+            "partner_type": clean_p_type or None,
+            "partner_name": clean_p_name or None,
+        },
+    )
+    return {
+        "processed_count": len(created_movements),
+        "movement_ids": [m.id for m in created_movements],
+    }
 
 
 def get_inventory_valuation_report(*, category_id: int | None = None) -> dict[str, Any]:

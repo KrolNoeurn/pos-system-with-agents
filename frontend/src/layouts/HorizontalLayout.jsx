@@ -18,7 +18,7 @@ export default function HorizontalLayout() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  const navRef = useRef(null);
+  const headerRef = useRef(null);
 
   const navItems = useMemo(
     () => filterNavigationByPermission(NAVIGATION_ITEMS, hasPermission),
@@ -31,14 +31,18 @@ export default function HorizontalLayout() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!openDropdownId) return undefined;
+    if (!openDropdownId && !mobileMenuOpen) return undefined;
     const handleOutsideClick = (event) => {
-      if (navRef.current && !navRef.current.contains(event.target)) {
+      if (headerRef.current && !headerRef.current.contains(event.target)) {
         setOpenDropdownId(null);
+        setMobileMenuOpen(false);
       }
     };
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") setOpenDropdownId(null);
+      if (event.key === "Escape") {
+        setOpenDropdownId(null);
+        setMobileMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleOutsideClick);
     document.addEventListener("keydown", handleKeyDown);
@@ -46,104 +50,114 @@ export default function HorizontalLayout() {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [openDropdownId]);
+  }, [openDropdownId, mobileMenuOpen]);
 
   return (
     <div className="pos-horizontal-shell" data-layout="horizontal">
-      <header className="pos-horizontal-header">
-        <nav className="navbar navbar-expand-lg py-2" aria-label="Horizontal navigation" ref={navRef}>
-          <div className="container-fluid px-3 px-md-4">
-            <Link className="navbar-brand fw-semibold d-flex align-items-center gap-2 me-4" to="/">
-              <i className="bi bi-shop text-primary fs-4" aria-hidden="true" />
-              <span>{THEME_CONFIG.appName}</span>
-            </Link>
+      <header className="pos-horizontal-header" ref={headerRef}>
+        {/* Tier 1: Brand + single HeaderControls + mobile menu button */}
+        <div className="pos-horizontal-topbar d-flex align-items-center px-3 px-md-4 py-2 gap-2">
+          <Link
+            className="navbar-brand fw-semibold d-flex align-items-center gap-2 text-decoration-none text-reset min-w-0 me-2"
+            to="/"
+          >
+            <i className="bi bi-shop text-primary fs-4 flex-shrink-0" aria-hidden="true" />
+            <span className="text-truncate">{THEME_CONFIG.appName}</span>
+          </Link>
 
-            <div className="d-flex align-items-center gap-2 d-lg-none">
-              <HeaderControls />
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => setMobileMenuOpen((prev) => !prev)}
-                aria-label={t("controls.openMenu")}
-                aria-expanded={mobileMenuOpen}
-              >
-                <i className="bi bi-list fs-5" aria-hidden="true" />
-              </button>
-            </div>
+          <HeaderControls />
 
-            <div className={`collapse navbar-collapse${mobileMenuOpen ? " show" : ""}`}>
-              <ul className="navbar-nav me-auto gap-lg-1 mt-2 mt-lg-0">
-                {navItems.map((item) => {
-                  const label = t(item.labelKey);
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary d-lg-none flex-shrink-0"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            aria-label={t("controls.openMenu")}
+            aria-expanded={mobileMenuOpen}
+          >
+            <i className={`bi ${mobileMenuOpen ? "bi-x-lg" : "bi-list"} fs-5`} aria-hidden="true" />
+          </button>
+        </div>
 
-                  if (item.children) {
-                    const isOpen = openDropdownId === item.id;
-                    const active = isItemActive(item, location.pathname);
+        {/* Tier 2: Full-width responsive horizontal menu (wraps cleanly on lg+, collapses on < lg) */}
+        <nav
+          className={`pos-horizontal-menubar px-3 px-md-4 ${
+            mobileMenuOpen ? "d-block" : "d-none d-lg-block"
+          }`}
+          aria-label="Horizontal navigation"
+        >
+          <ul className="pos-horizontal-nav-list">
+            {navItems.map((item, idx) => {
+              const label = t(item.labelKey);
 
-                    return (
-                      <li key={item.id} className="nav-item dropdown position-relative">
-                        <button
-                          type="button"
-                          className={`nav-link dropdown-toggle border-0 bg-transparent d-flex align-items-center gap-1${
-                            active ? " active fw-semibold text-primary" : ""
-                          }`}
-                          onClick={() =>
-                            setOpenDropdownId((prev) => (prev === item.id ? null : item.id))
-                          }
-                          aria-expanded={isOpen}
-                        >
-                          <i className={`bi ${item.icon}`} aria-hidden="true" />
-                          <span>{label}</span>
-                        </button>
+              if (item.children) {
+                const isOpen = openDropdownId === item.id;
+                const active = isItemActive(item, location.pathname);
+                const alignEnd = idx >= Math.max(2, navItems.length - 2);
 
-                        {isOpen && (
-                          <ul className="dropdown-menu show pos-nav-dropdown-menu py-1">
-                            {item.children.map((child) => (
-                              <li key={child.id}>
-                                <NavLink
-                                  to={child.to}
-                                  className={({ isActive }) =>
-                                    `dropdown-item py-2 d-flex align-items-center gap-2${
-                                      isActive ? " active" : ""
-                                    }`
-                                  }
-                                  onClick={() => setOpenDropdownId(null)}
-                                >
-                                  <i className={`bi ${child.icon}`} aria-hidden="true" />
-                                  <span>{t(child.labelKey)}</span>
-                                </NavLink>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    );
-                  }
+                return (
+                  <li key={item.id} className="position-relative">
+                    <button
+                      type="button"
+                      className={`pos-horizontal-nav-link dropdown-toggle${
+                        active ? " active" : ""
+                      }`}
+                      onClick={() =>
+                        setOpenDropdownId((prev) => (prev === item.id ? null : item.id))
+                      }
+                      aria-expanded={isOpen}
+                    >
+                      <i className={`bi ${item.icon} flex-shrink-0`} aria-hidden="true" />
+                      <span>{label}</span>
+                    </button>
 
-                  return (
-                    <li key={item.id} className="nav-item">
-                      <NavLink
-                        to={item.to}
-                        end={item.end}
-                        className={({ isActive }) =>
-                          `nav-link d-flex align-items-center gap-1${
-                            isActive ? " active fw-semibold text-primary" : ""
-                          }`
-                        }
+                    {isOpen && (
+                      <ul
+                        className={`dropdown-menu show pos-nav-dropdown-menu py-1${
+                          alignEnd ? " dropdown-menu-end" : ""
+                        }`}
                       >
-                        <i className={`bi ${item.icon}`} aria-hidden="true" />
-                        <span>{label}</span>
-                      </NavLink>
-                    </li>
-                  );
-                })}
-              </ul>
+                        {item.children.map((child) => (
+                          <li key={child.id}>
+                            <NavLink
+                              to={child.to}
+                              className={({ isActive }) =>
+                                `dropdown-item py-2 d-flex align-items-center gap-2${
+                                  isActive ? " active" : ""
+                                }`
+                              }
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                setMobileMenuOpen(false);
+                              }}
+                            >
+                              <i className={`bi ${child.icon} flex-shrink-0`} aria-hidden="true" />
+                              <span>{t(child.labelKey)}</span>
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              }
 
-              <div className="d-none d-lg-flex align-items-center">
-                <HeaderControls />
-              </div>
-            </div>
-          </div>
+              return (
+                <li key={item.id}>
+                  <NavLink
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      `pos-horizontal-nav-link${isActive ? " active" : ""}`
+                    }
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <i className={`bi ${item.icon} flex-shrink-0`} aria-hidden="true" />
+                    <span>{label}</span>
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
 
         <div className="pos-horizontal-subbar py-2 px-3 px-md-4">
@@ -151,7 +165,7 @@ export default function HorizontalLayout() {
         </div>
       </header>
 
-      <main className="flex-grow-1 py-4 px-3 px-md-4">
+      <main className="flex-grow-1 py-3 py-md-4 px-3 px-md-4">
         <div className="container-fluid px-0">
           <Outlet />
         </div>

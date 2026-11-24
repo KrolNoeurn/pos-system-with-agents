@@ -63,8 +63,11 @@
 - `expense_categories`: `id` (PK), `name` (unique, indexed), `name_km`, `description`, `is_active`, timestamps
 - `expenses`: `id` (PK), `expense_number` (unique, indexed), `category_id` (FK -> `expense_categories`, `PROTECT`), `title` (indexed), `amount` (`DECIMAL(14,2)` > 0), `expense_date` (indexed), `payment_method` (`cash` | `bank_transfer` | `card` | `qr` | `other`, indexed), `reference_code` (indexed), `vendor_name`, `notes`, `created_by` (`PROTECT`), `updated_by` (`PROTECT`), timestamps
 
-### `store_settings` (`apps/store_settings/migrations/0001_initial.py`)
+### `store_settings`, `backup_settings` & `backup_runs` (`apps/store_settings/migrations/0001_initial.py`, `0002_backuprun_backupsetting.py`)
 - `store_settings` *(singleton pk=1)*: `id` (PK), `store_name`, `store_name_km`, `tagline`, `phone`, `email`, `address`, `address_km`, `tax_id`, `currency_code`, `currency_symbol`, `exchange_rate_khr` (`DECIMAL(12,2)` > 0), `default_tax_rate` (`DECIMAL(5,2)` 0–100), `receipt_header`, `receipt_footer`, `receipt_footer_km`, `show_khr_on_receipt`, `show_tax_id_on_receipt`, `updated_by` (`PROTECT`), timestamps
+- `backup_settings` *(singleton pk=1)*: `id` (PK), `is_enabled`, `cron_expression`, `timezone_name`, `include_database`, `include_media`, `retention_count` (`1–50`), `telegram_enabled`, `telegram_bot_token` (never exposed raw in API responses), `telegram_chat_id`, `telegram_message_thread_id`, `telegram_caption_prefix`, `last_run_at`, `last_status`, `updated_by` (`PROTECT`), timestamps
+- `backup_runs`: `id` (PK), `status` (`running` | `success` | `failed`, indexed), `trigger_type` (`manual` | `scheduled`, indexed), `includes_database`, `includes_media`, `file_name`, `file_path`, `file_size_bytes`, `media_files_count`, `telegram_sent`, `telegram_parts_sent`, `telegram_message_id`, `error_message`, `started_at` (indexed), `completed_at`, `triggered_by` (`PROTECT`)
+- `accounts_users` (`apps/accounts/migrations/0002_user_avatar.py`): added nullable `avatar` (`ImageField` -> `avatars/%Y/%m/`)
 
 ### JWT Blacklist (`rest_framework_simplejwt.token_blacklist`)
 - `token_blacklist_outstandingtoken`, `token_blacklist_blacklistedtoken`
@@ -87,3 +90,4 @@
 | 2026-11-23 | Implemented `customers`, `sales_sales`, `sales_sale_items`, and `sales_payments` with idempotency, snapshots, and atomic stock integration | POS Checkout & Sales Module |
 | 2026-11-23 | Implemented `expense_categories` and `expenses` tables with `PROTECT` category guard and `Decimal` cash-flow tracking | Expenses & Cash Flow Module |
 | 2026-11-23 | Implemented singleton `store_settings` table for store identity, USD/KHR exchange rate, default tax, and receipt formatting | Store Settings & Audit Module |
+| 2026-11-24 | Added `accounts_users.avatar` (`0002_user_avatar`) and `backup_settings` + `backup_runs` (`0002_backuprun_backupsetting`) for profile images and crontab Telegram backups | Profile Image & Backup Control |
