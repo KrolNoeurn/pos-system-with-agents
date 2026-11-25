@@ -24,13 +24,16 @@ from apps.catalog.serializers import (
     UnitWriteSerializer,
 )
 from apps.catalog.services import (
+    add_product_images,
     create_category,
     create_product,
     create_unit,
     delete_category,
     delete_product,
+    delete_product_image,
     delete_unit,
     set_category_active_status,
+    set_primary_product_image,
     set_product_active_status,
     set_unit_active_status,
     update_category,
@@ -304,7 +307,7 @@ class ProductViewSet(ModelViewSet):
     }
 
     def get_queryset(self):
-        queryset = Product.objects.select_related("category", "unit").all()
+        queryset = Product.objects.select_related("category", "unit").prefetch_related("images").all()
 
         search = self.request.query_params.get("search")
         if search:
@@ -354,8 +357,10 @@ class ProductViewSet(ModelViewSet):
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = ProductWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        uploaded_images = request.FILES.getlist("images")
         product = create_product(
             actor=request.user,
+            images=uploaded_images,
             ip_address=get_client_ip(request),
             **serializer.validated_data,
         )
@@ -377,6 +382,9 @@ class ProductViewSet(ModelViewSet):
         image_val = data.pop("image", None)
         wholesale_provided = "wholesale_price" in data
         wholesale_val = data.pop("wholesale_price", None)
+        delete_image_ids = data.pop("delete_image_ids", None)
+        primary_image_id = data.pop("primary_image_id", None)
+        new_images = request.FILES.getlist("images")
 
         update_product(
             actor=request.user,
@@ -385,6 +393,9 @@ class ProductViewSet(ModelViewSet):
             barcode=barcode_val,
             image_provided=image_provided,
             image=image_val,
+            new_images=new_images,
+            delete_image_ids=delete_image_ids,
+            primary_image_id=primary_image_id,
             wholesale_price_provided=wholesale_provided,
             wholesale_price=wholesale_val,
             ip_address=get_client_ip(request),
@@ -437,6 +448,69 @@ class ProductViewSet(ModelViewSet):
             actor=request.user,
             product=instance,
             is_active=False,
+            ip_address=get_client_ip(request),
+        )
+        refreshed = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            ProductSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="images",
+        permission_classes=[IsActiveAuthenticated, require_permission("products.edit")],
+    )
+    def upload_images(self, request: Request, pk=None) -> Response:
+        instance = self.get_object()
+        uploaded = request.FILES.getlist("images")
+        if not uploaded and "image" in request.FILES:
+            uploaded = [request.FILES["image"]]
+        add_product_images(
+            actor=request.user,
+            product=instance,
+            images=uploaded,
+            ip_address=get_client_ip(request),
+        )
+        refreshed = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            ProductSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"images/(?P<image_id>\d+)",
+        permission_classes=[IsActiveAuthenticated, require_permission("products.edit")],
+    )
+    def remove_gallery_image(self, request: Request, pk=None, image_id=None) -> Response:
+        instance = self.get_object()
+        delete_product_image(
+            actor=request.user,
+            product=instance,
+            image_id=int(image_id),
+            ip_address=get_client_ip(request),
+        )
+        refreshed = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            ProductSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"images/(?P<image_id>\d+)/set-primary",
+        permission_classes=[IsActiveAuthenticated, require_permission("products.edit")],
+    )
+    def set_primary_image(self, request: Request, pk=None, image_id=None) -> Response:
+        instance = self.get_object()
+        set_primary_product_image(
+            actor=request.user,
+            product=instance,
+            image_id=int(image_id),
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)

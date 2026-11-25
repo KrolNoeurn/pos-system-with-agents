@@ -1,74 +1,124 @@
 /* ==========================================================================
-   POS Design System — Centralized CSS Variables, Light/Dark Themes & Khmer UI
+   POS Design System — Vuexy-Inspired Theme Tokens, Light/Dark Modes & Khmer UI
    ========================================================================== */
 
 :root,
 [data-bs-theme="light"] {
-  /* Typography */
-  --pos-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+  /* Typography — Vuexy Public Sans + Khmer Legibility */
+  --pos-font-sans: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Noto Sans Khmer", "Kantumruy Pro", "Khmer OS Battambang", sans-serif;
   --pos-line-height-en: 1.5;
   --pos-line-height-km: 1.72;
 
-  /* Surfaces */
-  --pos-bg-body: #f4f6f9;
+  /* Vuexy Brand & Semantic Palette */
+  --pos-accent: #7367f0;
+  --pos-accent-hover: #675dd8;
+  --pos-accent-rgb: 115, 103, 240;
+  --pos-accent-contrast: #ffffff;
+  --pos-accent-gradient: linear-gradient(270deg, rgba(115, 103, 240, 0.72) 0%, #7367f0 100%);
+  --pos-accent-shadow: 0 2px 6px rgba(115, 103, 240, 0.38);
+
+  /* Override Bootstrap 5 Semantic Tokens to Match Vuexy */
+  --bs-primary: #7367f0;
+  --bs-primary-rgb: 115, 103, 240;
+  --bs-secondary: #808390;
+  --bs-secondary-rgb: 128, 131, 144;
+  --bs-success: #28c76f;
+  --bs-success-rgb: 40, 199, 111;
+  --bs-info: #00bad1;
+  --bs-info-rgb: 0, 186, 209;
+  --bs-warning: #ff9f43;
+  --bs-warning-rgb: 255, 159, 67;
+  --bs-danger: #ea5455;
+  --bs-danger-rgb: 234, 84, 85;
+  --bs-link-color: #7367f0;
+  --bs-link-hover-color: #675dd8;
+  --bs-body-font-family: var(--pos-font-sans);
+
+  /* Surfaces (Vuexy Light Canvas) */
+  --pos-bg-body: #f8f7fa;
   --pos-bg-surface: #ffffff;
   --pos-bg-elevated: #ffffff;
-  --pos-bg-subtle: #f8f9fb;
+  --pos-bg-subtle: #f3f2f7;
   --pos-bg-sidebar: #ffffff;
-  --pos-bg-sidebar-hover: #eef2f7;
-  --pos-bg-sidebar-active: rgba(13, 110, 253, 0.1);
-  --pos-bg-topbar: #ffffff;
+  --pos-bg-sidebar-hover: rgba(47, 43, 61, 0.06);
+  --pos-bg-sidebar-active: rgba(115, 103, 240, 0.14);
+  --pos-bg-topbar: rgba(255, 255, 255, 0.92);
 
-  /* Borders & Shadows */
-  --pos-border-subtle: #e2e8f0;
-  --pos-border-strong: #cbd5e1;
-  --pos-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --pos-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  /* Borders & Vuexy Ambient Elevation Shadows */
+  --pos-border-subtle: #e6e6e8;
+  --pos-border-strong: #d1d0d4;
+  --pos-shadow-sm: 0 0.1875rem 0.75rem 0 rgba(47, 43, 61, 0.11);
+  --pos-shadow-md: 0 0.375rem 1.25rem 0 rgba(47, 43, 61, 0.16);
+  --pos-shadow-sidebar: 0 0.125rem 0.5rem 0 rgba(47, 43, 61, 0.08);
 
   /* Text */
-  --pos-text-primary: #0f172a;
-  --pos-text-secondary: #475569;
-  --pos-text-muted: #64748b;
-
-  /* Brand & Accents */
-  --pos-accent: #0d6efd;
-  --pos-accent-contrast: #ffffff;
+  --pos-text-primary: #444050;
+  --pos-text-secondary: #6d6b77;
+  --pos-text-muted: #acaab1;
+  --bs-body-color: #444050;
+  --bs-secondary-color: #6d6b77;
+  --bs-tertiary-bg: #f3f2f7;
+  --bs-border-color: #e6e6e8;
 
   /* Layout Dimensions */
   --pos-sidebar-width: 260px;
-  --pos-sidebar-mini-width: 74px;
-  --pos-topbar-height: 60px;
+  --pos-sidebar-mini-width: 76px;
+  --pos-topbar-height: 62px;
   --pos-radius-sm: 0.375rem;
-  --pos-radius-md: 0.625rem;
-  --pos-radius-lg: 0.875rem;
-  --pos-transition-fast: 160ms ease;
+  --pos-radius-md: 0.5rem;
+  --pos-radius-lg: 0.75rem;
+  --pos-transition-fast: 180ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 [data-bs-theme="dark"] {
-  --pos-bg-body: #0f141c;
-  --pos-bg-surface: #171f2b;
-  --pos-bg-elevated: #1e293b;
-  --pos-bg-subtle: #131a24;
-  --pos-bg-sidebar: #141b25;
-  --pos-bg-sidebar-hover: #1f2a3a;
-  --pos-bg-sidebar-active: rgba(59, 130, 246, 0.18);
-  --pos-bg-topbar: #141b25;
-
-  --pos-border-subtle: #263244;
-  --pos-border-strong: #37475e;
-  --pos-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --pos-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.4);
-
-  --pos-text-primary: #f1f5f9;
-  --pos-text-secondary: #cbd5e1;
-  --pos-text-muted: #94a3b8;
-
-  --pos-accent: #3b82f6;
+  /* Authentic Vuexy Dark Slate/Indigo Palette */
+  --pos-accent: #7367f0;
+  --pos-accent-hover: #8378f3;
+  --pos-accent-rgb: 115, 103, 240;
   --pos-accent-contrast: #ffffff;
+  --pos-accent-gradient: linear-gradient(270deg, rgba(115, 103, 240, 0.78) 0%, #7367f0 100%);
+  --pos-accent-shadow: 0 2px 8px rgba(115, 103, 240, 0.45);
+
+  --bs-primary: #7367f0;
+  --bs-primary-rgb: 115, 103, 240;
+  --bs-secondary: #808390;
+  --bs-success: #28c76f;
+  --bs-info: #00bad1;
+  --bs-warning: #ff9f43;
+  --bs-danger: #ea5455;
+  --bs-link-color: #9e95f5;
+  --bs-link-hover-color: #b7b0f8;
+
+  --pos-bg-body: #25293c;
+  --pos-bg-surface: #2f3349;
+  --pos-bg-elevated: #343952;
+  --pos-bg-subtle: #292d42;
+  --pos-bg-sidebar: #2f3349;
+  --pos-bg-sidebar-hover: rgba(225, 222, 245, 0.08);
+  --pos-bg-sidebar-active: rgba(115, 103, 240, 0.22);
+  --pos-bg-topbar: rgba(47, 51, 73, 0.92);
+
+  --pos-border-subtle: #44485e;
+  --pos-border-strong: #555a74;
+  --pos-shadow-sm: 0 0.25rem 1.125rem rgba(15, 20, 34, 0.42);
+  --pos-shadow-md: 0 0.5rem 1.75rem rgba(10, 14, 26, 0.55);
+  --pos-shadow-sidebar: 0 0.25rem 1rem rgba(15, 20, 34, 0.35);
+
+  --pos-text-primary: #e1def5;
+  --pos-text-secondary: #b6bee3;
+  --pos-text-muted: #7983bb;
+  --bs-body-color: #e1def5;
+  --bs-secondary-color: #acabc1;
+  --bs-body-bg: #25293c;
+  --bs-tertiary-bg: #292d42;
+  --bs-border-color: #44485e;
 }
 
-/* Base Typography & Khmer Legibility */
+/* ==========================================================================
+   Base Typography & Khmer Legibility
+   ========================================================================== */
+
 html,
 body {
   font-family: var(--pos-font-sans);
@@ -76,6 +126,24 @@ body {
   color: var(--pos-text-primary);
   line-height: var(--pos-line-height-en);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6 {
+  color: var(--pos-text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 html[lang="km"],
@@ -100,25 +168,220 @@ html[lang="km"] .badge {
   font-variant-numeric: tabular-nums;
 }
 
-/* Responsive tab strip safety on small mobile screens */
+/* ==========================================================================
+   Vuexy Component Refinements (Buttons, Forms, Badges, Tables, Tabs)
+   ========================================================================== */
+
+.btn {
+  border-radius: var(--pos-radius-sm);
+  font-weight: 500;
+  transition: transform 140ms ease, box-shadow var(--pos-transition-fast),
+    background-color var(--pos-transition-fast), border-color var(--pos-transition-fast);
+}
+
+.btn-primary {
+  --bs-btn-bg: #7367f0;
+  --bs-btn-border-color: #7367f0;
+  --bs-btn-hover-bg: #675dd8;
+  --bs-btn-hover-border-color: #675dd8;
+  --bs-btn-active-bg: #5e54c7;
+  --bs-btn-active-border-color: #5e54c7;
+  --bs-btn-disabled-bg: #7367f0;
+  --bs-btn-disabled-border-color: #7367f0;
+  box-shadow: 0 2px 6px rgba(115, 103, 240, 0.32);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(115, 103, 240, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #7367f0;
+  --bs-btn-border-color: #7367f0;
+  --bs-btn-hover-bg: rgba(115, 103, 240, 0.12);
+  --bs-btn-hover-border-color: #7367f0;
+  --bs-btn-hover-color: #7367f0;
+  --bs-btn-active-bg: #7367f0;
+  --bs-btn-active-border-color: #7367f0;
+  --bs-btn-active-color: #ffffff;
+}
+
+.btn-success {
+  --bs-btn-bg: #28c76f;
+  --bs-btn-border-color: #28c76f;
+  --bs-btn-hover-bg: #24b364;
+  --bs-btn-hover-border-color: #24b364;
+  box-shadow: 0 2px 6px rgba(40, 199, 111, 0.28);
+}
+
+.btn-danger {
+  --bs-btn-bg: #ea5455;
+  --bs-btn-border-color: #ea5455;
+  --bs-btn-hover-bg: #d94849;
+  --bs-btn-hover-border-color: #d94849;
+}
+
+.btn-warning {
+  --bs-btn-bg: #ff9f43;
+  --bs-btn-border-color: #ff9f43;
+  --bs-btn-color: #ffffff;
+  --bs-btn-hover-bg: #f08e32;
+  --bs-btn-hover-border-color: #f08e32;
+  --bs-btn-hover-color: #ffffff;
+}
+
+.btn-outline-secondary {
+  --bs-btn-border-color: var(--pos-border-strong);
+  --bs-btn-color: var(--pos-text-secondary);
+  --bs-btn-hover-bg: var(--pos-bg-sidebar-hover);
+  --bs-btn-hover-border-color: var(--pos-border-strong);
+  --bs-btn-hover-color: var(--pos-text-primary);
+}
+
+/* Vuexy Soft-Pastel Label Badges */
+.badge {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0.38em 0.68em;
+  border-radius: 0.3rem;
+}
+
+.badge.text-bg-primary {
+  background-color: rgba(115, 103, 240, 0.16) !important;
+  color: #7367f0 !important;
+}
+
+.badge.text-bg-success {
+  background-color: rgba(40, 199, 111, 0.16) !important;
+  color: #28c76f !important;
+}
+
+.badge.text-bg-danger {
+  background-color: rgba(234, 84, 85, 0.16) !important;
+  color: #ea5455 !important;
+}
+
+.badge.text-bg-warning {
+  background-color: rgba(255, 159, 67, 0.18) !important;
+  color: #e68222 !important;
+}
+
+[data-bs-theme="dark"] .badge.text-bg-warning {
+  color: #ff9f43 !important;
+}
+
+.badge.text-bg-info {
+  background-color: rgba(0, 186, 209, 0.16) !important;
+  color: #00a2b7 !important;
+}
+
+[data-bs-theme="dark"] .badge.text-bg-info {
+  color: #26d3e8 !important;
+}
+
+.badge.text-bg-secondary {
+  background-color: rgba(128, 131, 144, 0.16) !important;
+  color: var(--pos-text-secondary) !important;
+}
+
+/* Vuexy Form Controls */
+.form-control,
+.form-select {
+  border-color: var(--pos-border-strong);
+  border-radius: var(--pos-radius-sm);
+  background-color: var(--pos-bg-surface);
+  color: var(--pos-text-primary);
+  transition: border-color var(--pos-transition-fast), box-shadow var(--pos-transition-fast);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--pos-accent);
+  box-shadow: 0 0.125rem 0.25rem rgba(115, 103, 240, 0.24);
+  background-color: var(--pos-bg-surface);
+  color: var(--pos-text-primary);
+}
+
+.form-check-input:checked {
+  background-color: var(--pos-accent);
+  border-color: var(--pos-accent);
+}
+
+.form-check-input:focus {
+  border-color: var(--pos-accent);
+  box-shadow: 0 0 0 0.2rem rgba(115, 103, 240, 0.22);
+}
+
+/* Vuexy Data Table Styling */
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--pos-border-subtle);
+  --bs-table-hover-bg: rgba(115, 103, 240, 0.045);
+}
+
+.table thead th {
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--pos-text-secondary);
+  background-color: var(--pos-bg-subtle);
+  border-bottom: 1px solid var(--pos-border-subtle);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.table tbody td {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+  vertical-align: middle;
+}
+
+/* Vuexy Pill-Style Responsive Tabs */
 .nav-tabs {
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+  border-bottom: 0;
+  gap: 0.35rem;
+  padding-bottom: 0.25rem;
 }
 
 .nav-tabs .nav-link {
   white-space: nowrap;
+  border: 0;
+  border-radius: var(--pos-radius-sm);
+  color: var(--pos-text-secondary);
+  font-weight: 500;
+  padding: 0.55rem 1rem;
+  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast),
+    box-shadow var(--pos-transition-fast);
 }
 
-/* Shared Surfaces & Cards */
+.nav-tabs .nav-link:hover {
+  background-color: var(--pos-bg-sidebar-hover);
+  color: var(--pos-accent);
+}
+
+.nav-tabs .nav-link.active {
+  background: var(--pos-accent-gradient);
+  color: #ffffff;
+  box-shadow: var(--pos-accent-shadow);
+}
+
+/* Shared Surfaces & Vuexy Cards */
 .pos-surface {
   background-color: var(--pos-bg-surface);
-  border: 1px solid var(--pos-border-subtle);
+  border: 0;
   border-radius: var(--pos-radius-md);
   box-shadow: var(--pos-shadow-sm);
+}
+
+[data-bs-theme="dark"] .pos-surface {
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .pos-surface-header {
@@ -126,8 +389,278 @@ html[lang="km"] .badge {
   border-bottom: 1px solid var(--pos-border-subtle);
 }
 
+/* Vuexy Icon Badges (Page Header & KPI Cards) */
+.vuexy-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 0.5rem;
+  background: var(--pos-accent-gradient);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--pos-accent-shadow);
+  flex-shrink: 0;
+}
+
+.vuexy-page-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--pos-radius-md);
+  background-color: rgba(115, 103, 240, 0.14);
+  color: var(--pos-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vuexy-kpi-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 160ms ease, box-shadow var(--pos-transition-fast);
+}
+
+.vuexy-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pos-shadow-md);
+}
+
+.vuexy-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--pos-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.vuexy-kpi-icon.is-primary {
+  background-color: rgba(115, 103, 240, 0.15);
+  color: #7367f0;
+}
+
+.vuexy-kpi-icon.is-success {
+  background-color: rgba(40, 199, 111, 0.15);
+  color: #28c76f;
+}
+
+.vuexy-kpi-icon.is-danger {
+  background-color: rgba(234, 84, 85, 0.15);
+  color: #ea5455;
+}
+
+.vuexy-kpi-icon.is-warning {
+  background-color: rgba(255, 159, 67, 0.16);
+  color: #ff9f43;
+}
+
+/* Vuexy Login Decorative Wrapper */
+.vuexy-auth-wrapper {
+  background-color: var(--pos-bg-body);
+  background-image: radial-gradient(
+      circle at 15% 20%,
+      rgba(115, 103, 240, 0.12) 0%,
+      transparent 40%
+    ),
+    radial-gradient(circle at 85% 80%, rgba(0, 186, 209, 0.1) 0%, transparent 40%);
+}
+
 /* ==========================================================================
-   Vertical Layout Shell
+   Vuexy Product Media Dropzone & Gallery Cards
+   ========================================================================== */
+
+.vuexy-media-box {
+  background-color: var(--pos-bg-surface);
+  border: 1px solid var(--pos-border-subtle);
+  border-radius: var(--pos-radius-md);
+  padding: 1rem;
+}
+
+.vuexy-dropzone {
+  border: 2px dashed var(--pos-border-strong);
+  border-radius: var(--pos-radius-md);
+  background-color: var(--pos-bg-subtle);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--pos-transition-fast), background-color var(--pos-transition-fast),
+    box-shadow var(--pos-transition-fast);
+}
+
+.vuexy-dropzone:hover,
+.vuexy-dropzone.is-dragging {
+  border-color: var(--pos-accent);
+  background-color: rgba(115, 103, 240, 0.06);
+  box-shadow: 0 0 0 3px rgba(115, 103, 240, 0.12);
+}
+
+.vuexy-dropzone.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vuexy-dropzone-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--pos-radius-md);
+  background-color: rgba(115, 103, 240, 0.14);
+  color: var(--pos-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.vuexy-btn-label-primary {
+  background-color: rgba(115, 103, 240, 0.14);
+  color: var(--pos-accent);
+  border: 0;
+  font-weight: 500;
+}
+
+.vuexy-btn-label-primary:hover:not(:disabled) {
+  background-color: rgba(115, 103, 240, 0.24);
+  color: var(--pos-accent);
+}
+
+.vuexy-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 0.75rem;
+}
+
+.vuexy-media-card {
+  background-color: var(--pos-bg-surface);
+  border: 1px solid var(--pos-border-subtle);
+  border-radius: var(--pos-radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 6px rgba(47, 43, 61, 0.06);
+  transition: transform 150ms ease, box-shadow var(--pos-transition-fast),
+    border-color var(--pos-transition-fast);
+}
+
+.vuexy-media-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pos-shadow-sm);
+}
+
+.vuexy-media-card.is-primary {
+  border-color: var(--pos-accent);
+  box-shadow: 0 0 0 1px var(--pos-accent), 0 4px 10px rgba(115, 103, 240, 0.18);
+}
+
+.vuexy-media-thumb-wrap {
+  position: relative;
+  width: 100%;
+  height: 112px;
+  background-color: var(--pos-bg-subtle);
+  overflow: hidden;
+}
+
+.vuexy-media-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 200ms ease;
+}
+
+.vuexy-media-card:hover .vuexy-media-thumb-wrap img {
+  transform: scale(1.04);
+}
+
+.vuexy-media-footer {
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.vuexy-media-remove-btn {
+  border: 0;
+  border-top: 1px solid var(--pos-border-subtle);
+  background: transparent;
+  color: var(--pos-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.4rem 0.5rem;
+  width: 100%;
+  text-align: center;
+  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast);
+}
+
+.vuexy-media-remove-btn:hover:not(:disabled) {
+  background-color: rgba(234, 84, 85, 0.1);
+  color: #ea5455;
+}
+
+.vuexy-gallery-stage {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: var(--pos-radius-md);
+  background-color: var(--pos-bg-subtle);
+  border: 1px solid var(--pos-border-subtle);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vuexy-gallery-stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.vuexy-gallery-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background-color: rgba(47, 43, 61, 0.6);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--pos-transition-fast);
+}
+
+.vuexy-gallery-nav-btn:hover {
+  background-color: var(--pos-accent);
+}
+
+.vuexy-gallery-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--pos-radius-sm);
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid transparent;
+  background-color: var(--pos-bg-subtle);
+  opacity: 0.72;
+  transition: opacity var(--pos-transition-fast), border-color var(--pos-transition-fast),
+    transform 140ms ease;
+}
+
+.vuexy-gallery-thumb:hover,
+.vuexy-gallery-thumb.is-active {
+  opacity: 1;
+  border-color: var(--pos-accent);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Vertical Layout Shell (Vuexy Elevated Sidebar + Floating Glass Topbar)
    ========================================================================== */
 
 .pos-vertical-shell {
@@ -141,7 +674,8 @@ html[lang="km"] .badge {
   width: var(--pos-sidebar-width);
   flex-shrink: 0;
   background-color: var(--pos-bg-sidebar);
-  border-right: 1px solid var(--pos-border-subtle);
+  border-right: 0;
+  box-shadow: var(--pos-shadow-sidebar);
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -154,20 +688,21 @@ html[lang="km"] .badge {
 }
 
 .pos-sidebar-brand {
-  min-height: var(--pos-topbar-height);
-  padding: 0 1rem;
-  border-bottom: 1px solid var(--pos-border-subtle);
+  min-height: 66px;
+  padding: 0 1.25rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
   color: var(--pos-text-primary);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
   white-space: nowrap;
 }
 
 .pos-sidebar-nav {
-  padding: 0.75rem 0.625rem;
+  padding: 0.5rem 0.75rem 1rem;
   flex: 1;
 }
 
@@ -177,16 +712,17 @@ html[lang="km"] .badge {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.625rem 0.75rem;
+  padding: 0.6rem 0.85rem;
   border-radius: var(--pos-radius-sm);
   border: 0;
   background: transparent;
   color: var(--pos-text-secondary);
   text-decoration: none;
   font-weight: 500;
-  font-size: 0.925rem;
+  font-size: 0.92rem;
   text-align: left;
-  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast);
+  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast),
+    box-shadow var(--pos-transition-fast);
 }
 
 .pos-sidebar-link:hover,
@@ -196,17 +732,22 @@ html[lang="km"] .badge {
 }
 
 .pos-sidebar-link.active {
-  background-color: var(--pos-bg-sidebar-active);
-  color: var(--pos-accent);
+  background: var(--pos-accent-gradient);
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: var(--pos-accent-shadow);
+}
+
+.pos-sidebar-link.active:hover {
+  color: #ffffff;
 }
 
 .pos-sidebar-submenu {
   margin-top: 0.25rem;
-  padding-left: 1.25rem;
+  padding-left: 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.2rem;
 }
 
 /* Desktop-only mini & collapsed modes so mobile drawer always renders full labels */
@@ -217,7 +758,7 @@ html[lang="km"] .badge {
 
   .pos-sidebar.is-collapsed {
     width: 0;
-    border-right-width: 0;
+    box-shadow: none;
     overflow: hidden;
   }
 
@@ -248,21 +789,28 @@ html[lang="km"] .badge {
   flex-direction: column;
 }
 
+/* Vuexy Floating Elevated Topbar */
 .pos-topbar {
   min-height: var(--pos-topbar-height);
   background-color: var(--pos-bg-topbar);
-  border-bottom: 1px solid var(--pos-border-subtle);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--pos-radius-md);
+  box-shadow: var(--pos-shadow-sm);
+  margin: 0.75rem 0.75rem 0;
   position: sticky;
-  top: 0;
+  top: 0.75rem;
   z-index: 1020;
   display: flex;
   align-items: center;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.85rem;
   gap: 0.5rem;
 }
 
 @media (min-width: 768px) {
   .pos-topbar {
+    margin: 1rem 1.5rem 0;
+    top: 1rem;
     padding: 0.5rem 1.25rem;
     gap: 1rem;
   }
@@ -272,7 +820,8 @@ html[lang="km"] .badge {
 .pos-sidebar-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.5);
+  background-color: rgba(25, 28, 44, 0.55);
+  backdrop-filter: blur(2px);
   z-index: 1035;
 }
 
@@ -283,7 +832,7 @@ html[lang="km"] .badge {
     top: 0;
     bottom: 0;
     width: min(var(--pos-sidebar-width), 85vw) !important;
-    border-right: 1px solid var(--pos-border-subtle) !important;
+    box-shadow: var(--pos-shadow-md) !important;
     overflow-y: auto !important;
     transform: translateX(-100%);
     z-index: 1040;
@@ -295,7 +844,7 @@ html[lang="km"] .badge {
 }
 
 /* ==========================================================================
-   Horizontal Layout Shell (Two-Tier Responsive Header)
+   Horizontal Layout Shell (Vuexy Two-Tier Elevated Header)
    ========================================================================== */
 
 .pos-horizontal-shell {
@@ -308,7 +857,9 @@ html[lang="km"] .badge {
 
 .pos-horizontal-header {
   background-color: var(--pos-bg-topbar);
-  border-bottom: 1px solid var(--pos-border-subtle);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--pos-shadow-sm);
   position: sticky;
   top: 0;
   z-index: 1030;
@@ -320,7 +871,7 @@ html[lang="km"] .badge {
 }
 
 .pos-horizontal-menubar {
-  background-color: var(--pos-bg-topbar);
+  background-color: var(--pos-bg-surface);
   border-bottom: 1px solid var(--pos-border-subtle);
 }
 
@@ -338,7 +889,7 @@ html[lang="km"] .badge {
   align-items: center;
   gap: 0.45rem;
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.85rem;
   border-radius: var(--pos-radius-sm);
   border: 0;
   background: transparent;
@@ -347,7 +898,8 @@ html[lang="km"] .badge {
   font-weight: 500;
   font-size: 0.9rem;
   white-space: nowrap;
-  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast);
+  transition: background-color var(--pos-transition-fast), color var(--pos-transition-fast),
+    box-shadow var(--pos-transition-fast);
 }
 
 .pos-horizontal-nav-link:hover {
@@ -356,22 +908,46 @@ html[lang="km"] .badge {
 }
 
 .pos-horizontal-nav-link.active {
-  background-color: var(--pos-bg-sidebar-active);
-  color: var(--pos-accent);
+  background: var(--pos-accent-gradient);
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: var(--pos-accent-shadow);
+}
+
+.pos-horizontal-nav-link.active:hover {
+  color: #ffffff;
 }
 
 .pos-horizontal-subbar {
-  background-color: var(--pos-bg-subtle);
+  background-color: var(--pos-bg-body);
 }
 
 .pos-nav-dropdown-menu {
-  min-width: 220px;
+  min-width: 224px;
   max-width: calc(100vw - 1.5rem);
   border: 1px solid var(--pos-border-subtle);
+  border-radius: var(--pos-radius-md);
   box-shadow: var(--pos-shadow-md);
   background-color: var(--pos-bg-elevated);
+  padding: 0.4rem;
   z-index: 1040;
+}
+
+.pos-nav-dropdown-menu .dropdown-item {
+  border-radius: var(--pos-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--pos-text-secondary);
+}
+
+.pos-nav-dropdown-menu .dropdown-item:hover {
+  background-color: var(--pos-bg-sidebar-hover);
+  color: var(--pos-text-primary);
+}
+
+.pos-nav-dropdown-menu .dropdown-item.active {
+  background: var(--pos-accent-gradient);
+  color: #ffffff;
 }
 
 @media (max-width: 991.98px) {
@@ -389,7 +965,7 @@ html[lang="km"] .badge {
     border-left: 2px solid var(--pos-border-subtle);
     border-radius: 0;
     margin: 0.25rem 0 0.25rem 1rem;
-    padding-left: 0.25rem;
+    padding: 0 0 0 0.25rem;
     background-color: transparent;
   }
 }
@@ -399,18 +975,18 @@ html[lang="km"] .badge {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    padding: 0.375rem 0;
-    gap: 0.25rem 0.35rem;
+    padding: 0.45rem 0;
+    gap: 0.3rem 0.4rem;
   }
 
   .pos-horizontal-nav-link {
     width: auto;
-    padding: 0.425rem 0.7rem;
+    padding: 0.45rem 0.85rem;
   }
 
   .pos-horizontal-menubar .pos-nav-dropdown-menu {
     position: absolute;
-    top: calc(100% + 0.25rem);
+    top: calc(100% + 0.35rem);
     left: 0;
   }
 
@@ -421,13 +997,14 @@ html[lang="km"] .badge {
 }
 
 /* ==========================================================================
-   Modal & Toast Layers
+   Modal & Toast Layers (Vuexy Elevated Dialogs & Notifications)
    ========================================================================== */
 
 .pos-modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.55);
+  background-color: rgba(25, 28, 44, 0.58);
+  backdrop-filter: blur(2px);
   z-index: 1050;
   display: flex;
   align-items: center;
@@ -467,13 +1044,13 @@ html[lang="km"] .badge {
 
 .pos-toast-stack {
   position: fixed;
-  top: 1rem;
-  right: 1rem;
+  top: 1.25rem;
+  right: 1.25rem;
   z-index: 1080;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  width: min(360px, calc(100vw - 2rem));
+  gap: 0.6rem;
+  width: min(370px, calc(100vw - 2rem));
   pointer-events: none;
 }
 
@@ -491,7 +1068,7 @@ html[lang="km"] .badge {
   bottom: 0;
   height: 3px;
   width: 100%;
-  opacity: 0.7;
+  opacity: 0.8;
   transform-origin: left center;
   animation-name: pos-toast-shrink;
   animation-timing-function: linear;

@@ -88,9 +88,12 @@
 | Method | Endpoint | Required Permission | Purpose |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/products/` | `products.view` | Paginated product list (`?page=`, `?page_size=`, `?search=`, `?category=`, `?unit=`, `?is_active=`, `?min_price=`, `?max_price=`, `?ordering=name\|-name\|selling_price\|-selling_price\|sku\|-created_at`) |
-| `POST` | `/api/v1/products/` | `products.create` | Create product (JSON or `multipart/form-data` with optional image upload; exact `Decimal` pricing; no editable stock field) |
-| `GET` | `/api/v1/products/{id}/` | `products.view` | Retrieve product detail (includes `category_name`, `unit_abbreviation`, `image_url`) |
-| `PATCH` | `/api/v1/products/{id}/` | `products.edit` (+ `products.edit_price` for price changes) | Update product details, optional image replacement/`remove_image=true`, and audited price edits |
+| `POST` | `/api/v1/products/` | `products.create` | Create product (JSON or `multipart/form-data` with single `image` or multiple `images[]`, up to 10 photos; exact `Decimal` pricing; no editable stock field) |
+| `GET` | `/api/v1/products/{id}/` | `products.view` | Retrieve product detail (includes `category_name`, `unit_abbreviation`, primary `image_url`, `images[]`, `images_count`) |
+| `PATCH` | `/api/v1/products/{id}/` | `products.edit` (+ `products.edit_price` for price changes) | Update product details, append `images[]`, remove via `delete_image_ids[]`, set `primary_image_id`, and audited price edits |
+| `POST` | `/api/v1/products/{id}/images/` | `products.edit` | Upload one or more additional gallery images (`images[]`, max 10 total per product) |
+| `POST` | `/api/v1/products/{id}/images/{image_id}/set-primary/` | `products.edit` | Promote a gallery image to primary product thumbnail |
+| `DELETE` | `/api/v1/products/{id}/images/{image_id}/` | `products.edit` | Delete a gallery image (auto-promotes next remaining image if primary is deleted) |
 | `DELETE` | `/api/v1/products/{id}/` | `products.delete` | Delete unused product (`204`); returns `409 Conflict` if referenced in historical transactions (`ProtectedError`) |
 | `POST` | `/api/v1/products/{id}/activate/` | `products.edit` | Activate product |
 | `POST` | `/api/v1/products/{id}/deactivate/` | `products.edit` | Deactivate product |
@@ -135,7 +138,7 @@
 | `POST` | `/api/v1/customers/import-csv/` | `customers.create` | Atomically bulk import/update customers from CSV (`file` or `csv_text`) |
 | `GET` | `/api/v1/sales/catalog/` | `sales.create` or `sales.view` | Active POS product lookup with barcode/SKU/name search, category filter, and read-only live stock availability |
 | `GET` | `/api/v1/sales/` | `sales.view` | Paginated sales history (`?search=`, `?status=`, `?payment_method=`, `?customer=`, `?date_from=`, `?date_to=`) |
-| `POST` | `/api/v1/sales/` | `sales.create` (+ `sales.discount` if `discount_amount > 0`) | Atomic POS checkout (`201 Created`; `200 OK` on idempotent replay; rolls back completely on insufficient stock) |
+| `POST` | `/api/v1/sales/` | `sales.create` (+ `sales.discount` if any item or order discount > 0) | Atomic POS checkout supporting per-item and all-items `fixed` (cash) or `percent` (%) discounts (`items[].discount_type/discount_value`, header `discount_type/discount_value/discount_amount`); `201 Created` / `200 OK` on idempotent replay |
 | `GET` | `/api/v1/sales/{id}/` | `sales.view` | Retrieve full immutable sale detail & receipt payload (items, payments, totals, cashier, customer) |
 | `POST` | `/api/v1/sales/{id}/cancel/` | `sales.cancel` | Atomically void completed sale (requires `reason`), restore stock (`VOID` movement), block duplicates (`409`) |
 | `POST` | `/api/v1/sales/{id}/refund/` | `sales.refund` | Atomically refund completed sale (requires `reason`), restore stock (`REFUND` movement), block duplicates (`409`) |

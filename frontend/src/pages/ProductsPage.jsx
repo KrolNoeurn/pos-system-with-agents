@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StatusAlert from "../components/StatusAlert";
 import {
   AppCard,
@@ -27,6 +27,7 @@ import {
 import { fetchUnits } from "../services/unitsService";
 
 const PAGE_SIZE = 10;
+const MAX_PRODUCT_IMAGES = 10;
 
 const EMPTY_FORM = {
   sku: "",
@@ -47,6 +48,23 @@ const EMPTY_FORM = {
   remove_image: false,
 };
 
+function resolveProductGallery(product) {
+  if (!product) return [];
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    return product.images
+      .filter((img) => img && img.image_url)
+      .map((img) => ({
+        id: img.id,
+        url: img.image_url,
+        isPrimary: Boolean(img.is_primary),
+      }));
+  }
+  if (product.image_url) {
+    return [{ id: "legacy", url: product.image_url, isPrimary: true }];
+  }
+  return [];
+}
+
 function formatMoney(value) {
   if (value === null || value === undefined || value === "") return "—";
   const num = Number(value);
@@ -59,6 +77,25 @@ function formatQty(value) {
   const num = Number(value);
   if (Number.isNaN(num)) return String(value);
   return num.toString();
+}
+
+function formatFileSize(bytes) {
+  const num = Number(bytes || 0);
+  if (num <= 0) return "";
+  if (num < 1024) return `${num} B`;
+  if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;
+  return `${(num / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getFileNameFromUrl(url, fallback) {
+  if (!url) return fallback;
+  try {
+    const clean = url.split("?")[0];
+    const parts = clean.split("/");
+    return decodeURIComponent(parts[parts.length - 1] || fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 export default function ProductsPage() {
@@ -89,10 +126,17 @@ export default function ProductsPage() {
   const [busyId, setBusyId] = useState(null);
 
   const [detailProduct, setDetailProduct] = useState(null);
+  const [activeDetailImageUrl, setActiveDetailImageUrl] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [existingImages, setExistingImages] = useState([]);
+  const [deletedImageIds, setDeletedImageIds] = useState([]);
+  const [primaryImageId, setPrimaryImageId] = useState(null);
+  const [queuedImages, setQueuedImages] = useState([]); // [{ file, previewUrl }]
+  const [legacyPreviewUrl, setLegacyPreviewUrl] = useState(null);
+  const [isDraggingMedia, setIsDraggingMedia] = useState(false);
+  const mediaInputRef = useRef(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -140,16 +184,38 @@ export default function ProductsPage() {
 
   useEffect(() => {
     return () => {
-      if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
+      queuedImages.forEach((item) => {
+        if (item.previewUrl?.startsWith("blob:")) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
     };
-  }, [imagePreviewUrl]);
+  }, [queuedImages]);
+
+  useEffect(() => {
+    const gallery = resolveProductGallery(detailProduct);
+    setActiveDetailImageUrl(gallery[0]?.url || null);
+  }, [detailProduct]);
+
+  const clearQueuedImages = useCallback(() => {
+    setQueuedImages((prev) => {
+      prev.forEach((item) => {
+        if (item.previewUrl?.startsWith("blob:")) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
+      return [];
+    });
+  }, []);
 
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormData(EMPTY_FORM);
-    setImagePreviewUrl(null);
+    setExistingImages([]);
+    setDeletedImageIds([]);
+    setPrimaryImageId(null);
+    setLegacyPreviewUrl(null);
+    clearQueuedImages();
     setFieldErrors({});
     setModalOpen(true);
     if (categories.length === 0 || units.length === 0) {
@@ -181,27 +247,78 @@ export default function ProductsPage() {
         image: null,
         remove_image: false,
       });
-      setImagePreviewUrl(product.image_url || null);
+      const gallery = Array.isArray(product.images) ? product.images : [];
+      setExistingImages(gallery);
+      setDeletedImageIds([]);
+      const primary = gallery.find((img) => img.is_primary) || gallery[0] || null;
+      setPrimaryImageId(primary ? primary.id : null);
+      setLegacyPreviewUrl(gallery.length === 0 ? product.image_url || null : null);
+      clearQueuedImages();
       setFieldErrors({});
       setModalOpen(true);
       if (categories.length === 0 || units.length === 0) {
         loadLookups();
       }
     },
-    [categories.length, loadLookups, units.length]
+    [categories.length, clearQueuedImages, loadLookups, units.length]
   );
 
+  const appendSelectedFiles = (rawFiles) => {
+    const files = Array.from(rawFiles || []).filter(
+      (f) => f && (!f.type || f.type.startsWith("image/"))
+    );
+    if (files.length === 0) return;
+
+    const currentCount = existingImages.length + queuedImages.length;
+    const remainingSlots = MAX_PRODUCT_IMAGES - currentCount;
+    if (remainingSlots <= 0) {
+      toast.warning(t("products.maxImagesWarning"));
+      return;
+    }
+
+    const accepted = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+      toast.warning(t("products.maxImagesWarning"));
+    }
+
+    const nextEntries = accepted.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setQueuedImages((prev) => [...prev, ...nextEntries]);
+  };
+
   const handleImageFileChange = (event) => {
-    const file = event.target.files?.[0] || null;
-    if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(imagePreviewUrl);
-    }
-    setFormData((prev) => ({ ...prev, image: file, remove_image: false }));
-    if (file) {
-      setImagePreviewUrl(URL.createObjectURL(file));
-    } else {
-      setImagePreviewUrl(editingProduct?.image_url || null);
-    }
+    appendSelectedFiles(event.target.files);
+    event.target.value = "";
+  };
+
+  const handleDropMedia = (event) => {
+    event.preventDefault();
+    setIsDraggingMedia(false);
+    if (saving || existingImages.length + queuedImages.length >= MAX_PRODUCT_IMAGES) return;
+    appendSelectedFiles(event.dataTransfer?.files);
+  };
+
+  const handleRemoveQueuedImage = (index) => {
+    setQueuedImages((prev) => {
+      const target = prev[index];
+      if (target?.previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((_, idx) => idx !== index);
+    });
+  };
+
+  const handleMarkExistingImageDeleted = (imageId) => {
+    setExistingImages((prev) => {
+      const remaining = prev.filter((img) => img.id !== imageId);
+      if (primaryImageId === imageId) {
+        setPrimaryImageId(remaining[0]?.id ?? null);
+      }
+      return remaining;
+    });
+    setDeletedImageIds((prev) => (prev.includes(imageId) ? prev : [...prev, imageId]));
   };
 
   const extractFieldErrors = (err) => {
@@ -269,10 +386,19 @@ export default function ProductsPage() {
           formData.wholesale_price.trim() !== "" ? formData.wholesale_price.trim() : null;
       }
 
-      if (formData.image instanceof File) {
-        payload.image = formData.image;
-      } else if (editingProduct && formData.remove_image) {
-        payload.remove_image = true;
+      if (queuedImages.length > 0) {
+        payload.images = queuedImages.map((entry) => entry.file);
+      }
+      if (editingProduct) {
+        if (formData.remove_image) {
+          payload.remove_image = true;
+        }
+        if (deletedImageIds.length > 0) {
+          payload.delete_image_ids = deletedImageIds;
+        }
+        if (primaryImageId !== null && existingImages.some((img) => img.id === primaryImageId)) {
+          payload.primary_image_id = primaryImageId;
+        }
       }
 
       if (editingProduct) {
@@ -389,21 +515,32 @@ export default function ProductsPage() {
         header: t("products.colProduct"),
         render: (p) => (
           <div className="d-flex align-items-center gap-3">
-            {p.image_url ? (
-              <img
-                src={p.image_url}
-                alt={p.name}
-                className="rounded border object-fit-cover flex-shrink-0"
-                style={{ width: "44px", height: "44px" }}
-              />
-            ) : (
-              <div
-                className="rounded border bg-body-tertiary d-flex align-items-center justify-content-center text-body-secondary flex-shrink-0"
-                style={{ width: "44px", height: "44px" }}
-              >
-                <i className="bi bi-box-seam" aria-hidden="true" />
-              </div>
-            )}
+            <div className="position-relative flex-shrink-0">
+              {p.image_url ? (
+                <img
+                  src={p.image_url}
+                  alt={p.name}
+                  className="rounded border object-fit-cover"
+                  style={{ width: "44px", height: "44px" }}
+                />
+              ) : (
+                <div
+                  className="rounded border bg-body-tertiary d-flex align-items-center justify-content-center text-body-secondary"
+                  style={{ width: "44px", height: "44px" }}
+                >
+                  <i className="bi bi-box-seam" aria-hidden="true" />
+                </div>
+              )}
+              {(p.images_count || p.images?.length || 0) > 1 && (
+                <span
+                  className="position-absolute bottom-0 end-0 badge text-bg-primary"
+                  style={{ fontSize: "0.65rem", padding: "0.15em 0.35em" }}
+                  title={`${p.images_count || p.images.length} images`}
+                >
+                  +{ (p.images_count || p.images.length) - 1 }
+                </span>
+              )}
+            </div>
             <div className="min-w-0">
               <div className="fw-semibold">
                 {language === "km" && p.name_km ? p.name_km : p.name}
@@ -679,46 +816,116 @@ export default function ProductsPage() {
           </div>
         }
       >
-        {detailProduct && (
+        {detailProduct && (() => {
+          const detailGallery = resolveProductGallery(detailProduct);
+          const activeIdx = Math.max(
+            0,
+            detailGallery.findIndex((img) => img.url === activeDetailImageUrl)
+          );
+          const activeImg = detailGallery[activeIdx] || detailGallery[0] || null;
+          const heroUrl = activeImg?.url || null;
+          const stepGallery = (delta) => {
+            if (detailGallery.length <= 1) return;
+            const nextIdx = (activeIdx + delta + detailGallery.length) % detailGallery.length;
+            setActiveDetailImageUrl(detailGallery[nextIdx].url);
+          };
+
+          return (
           <div className="d-flex flex-column gap-3">
-            <div className="d-flex gap-3 align-items-start">
-              {detailProduct.image_url ? (
-                <img
-                  src={detailProduct.image_url}
-                  alt={detailProduct.name}
-                  className="rounded border object-fit-cover flex-shrink-0"
-                  style={{ width: "88px", height: "88px" }}
-                />
-              ) : (
-                <div
-                  className="rounded border bg-body-tertiary d-flex align-items-center justify-content-center text-body-secondary flex-shrink-0"
-                  style={{ width: "88px", height: "88px" }}
-                >
-                  <i className="bi bi-box-seam fs-2" aria-hidden="true" />
+            {/* Vuexy Media Showcase Stage */}
+            <div className="vuexy-media-box">
+              <div className="vuexy-gallery-stage">
+                {heroUrl ? (
+                  <img src={heroUrl} alt={detailProduct.name} />
+                ) : (
+                  <div className="text-body-secondary d-flex flex-column align-items-center gap-1">
+                    <i className="bi bi-images fs-1" aria-hidden="true" />
+                    <span className="small">{t("products.galleryEmpty")}</span>
+                  </div>
+                )}
+
+                {activeImg?.isPrimary && (
+                  <span className="badge text-bg-primary position-absolute top-0 start-0 m-2">
+                    <i className="bi bi-star-fill me-1" aria-hidden="true" />
+                    {t("products.primaryBadge")}
+                  </span>
+                )}
+
+                {detailGallery.length > 1 && (
+                  <>
+                    <span
+                      className="badge position-absolute top-0 end-0 m-2 pos-tabular"
+                      style={{ backgroundColor: "rgba(47, 43, 61, 0.72)", color: "#ffffff" }}
+                    >
+                      {activeIdx + 1} / {detailGallery.length}
+                    </span>
+                    <button
+                      type="button"
+                      className="vuexy-gallery-nav-btn"
+                      style={{ left: "0.6rem" }}
+                      onClick={() => stepGallery(-1)}
+                      aria-label="Previous image"
+                    >
+                      <i className="bi bi-chevron-left" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="vuexy-gallery-nav-btn"
+                      style={{ right: "0.6rem" }}
+                      onClick={() => stepGallery(1)}
+                      aria-label="Next image"
+                    >
+                      <i className="bi bi-chevron-right" aria-hidden="true" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {detailGallery.length > 1 && (
+                <div className="d-flex flex-wrap gap-2 mt-3 justify-content-center">
+                  {detailGallery.map((img, idx) => {
+                    const isActive = heroUrl === img.url;
+                    return (
+                      <button
+                        key={img.id}
+                        type="button"
+                        className={`vuexy-gallery-thumb${isActive ? " is-active" : ""}`}
+                        onClick={() => setActiveDetailImageUrl(img.url)}
+                        aria-label={`View image ${idx + 1}`}
+                      >
+                        <img
+                          src={img.url}
+                          alt={`${detailProduct.name} ${idx + 1}`}
+                          className="w-100 h-100 object-fit-cover"
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
-              <div>
-                <h3 className="h5 mb-1">{detailProduct.name}</h3>
-                {detailProduct.name_km && (
-                  <div className="text-body-secondary mb-1">{detailProduct.name_km}</div>
-                )}
-                <div className="d-flex flex-wrap gap-2 small">
+            </div>
+
+            <div>
+              <h3 className="h5 mb-1">{detailProduct.name}</h3>
+              {detailProduct.name_km && (
+                <div className="text-body-secondary mb-1">{detailProduct.name_km}</div>
+              )}
+              <div className="d-flex flex-wrap gap-2 small">
+                <code className="px-2 py-1 rounded border bg-body-tertiary">
+                  SKU: {detailProduct.sku}
+                </code>
+                {detailProduct.barcode && (
                   <code className="px-2 py-1 rounded border bg-body-tertiary">
-                    SKU: {detailProduct.sku}
+                    Barcode: {detailProduct.barcode}
                   </code>
-                  {detailProduct.barcode && (
-                    <code className="px-2 py-1 rounded border bg-body-tertiary">
-                      Barcode: {detailProduct.barcode}
-                    </code>
-                  )}
-                  <span
-                    className={`badge align-self-center ${
-                      detailProduct.is_active ? "text-bg-success" : "text-bg-danger"
-                    }`}
-                  >
-                    {detailProduct.is_active ? t("status.active") : t("status.inactive")}
-                  </span>
-                </div>
+                )}
+                <span
+                  className={`badge align-self-center ${
+                    detailProduct.is_active ? "text-bg-success" : "text-bg-danger"
+                  }`}
+                >
+                  {detailProduct.is_active ? t("status.active") : t("status.inactive")}
+                </span>
               </div>
             </div>
 
@@ -754,7 +961,8 @@ export default function ProductsPage() {
 
             <StatusAlert variant="info" message={t("products.inventoryNotice")} />
           </div>
-        )}
+          );
+        })()}
       </AppModal>
 
       {/* Create / Edit Product Modal */}
@@ -918,44 +1126,187 @@ export default function ProductsPage() {
               />
             </div>
 
+            {/* Vuexy Product Media Dropzone & Preview Cards */}
             <div className="col-12">
-              <label htmlFor="productImage" className="form-label fw-medium">
-                {t("products.imageLabel")}
-              </label>
-              <input
-                id="productImage"
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                className={`form-control${fieldErrors.image ? " is-invalid" : ""}`}
-                onChange={handleImageFileChange}
-                disabled={saving}
-              />
-              {fieldErrors.image && (
-                <div className="invalid-feedback">{fieldErrors.image}</div>
-              )}
-              {imagePreviewUrl && !formData.remove_image && (
-                <div className="mt-2 d-flex align-items-center gap-3">
-                  <img
-                    src={imagePreviewUrl}
-                    alt="Preview"
-                    className="rounded border object-fit-cover"
-                    style={{ width: "64px", height: "64px" }}
-                  />
-                  {editingProduct?.image_url && !formData.image && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => {
-                        setFormData((prev) => ({ ...prev, remove_image: true }));
-                        setImagePreviewUrl(null);
-                      }}
-                      disabled={saving}
-                    >
-                      {t("products.removeImage")}
-                    </button>
-                  )}
+              <div className="vuexy-media-box">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <label htmlFor="productImage" className="fw-semibold mb-0 d-flex align-items-center gap-2">
+                    <i className="bi bi-images text-primary" aria-hidden="true" />
+                    <span>{t("products.mediaTitle")}</span>
+                  </label>
+                  <span className="badge text-bg-primary pos-tabular">
+                    {existingImages.length + queuedImages.length} / {MAX_PRODUCT_IMAGES}
+                  </span>
                 </div>
-              )}
+
+                <input
+                  ref={mediaInputRef}
+                  id="productImage"
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  aria-label={t("products.imageLabel")}
+                  className="d-none"
+                  onChange={handleImageFileChange}
+                  disabled={saving || existingImages.length + queuedImages.length >= MAX_PRODUCT_IMAGES}
+                />
+
+                <div
+                  className={`vuexy-dropzone${isDraggingMedia ? " is-dragging" : ""}${
+                    saving || existingImages.length + queuedImages.length >= MAX_PRODUCT_IMAGES
+                      ? " is-disabled"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    if (!saving && existingImages.length + queuedImages.length < MAX_PRODUCT_IMAGES) {
+                      mediaInputRef.current?.click();
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (!saving) setIsDraggingMedia(true);
+                  }}
+                  onDragLeave={() => setIsDraggingMedia(false)}
+                  onDrop={handleDropMedia}
+                >
+                  <div className="vuexy-dropzone-icon" aria-hidden="true">
+                    <i className="bi bi-upload" />
+                  </div>
+                  <div className="fw-semibold mb-1">{t("products.dropzoneTitle")}</div>
+                  <div className="small text-body-secondary mb-2">{t("products.dropzoneOr")}</div>
+                  <button
+                    type="button"
+                    className="btn btn-sm vuexy-btn-label-primary px-3"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      mediaInputRef.current?.click();
+                    }}
+                    disabled={saving || existingImages.length + queuedImages.length >= MAX_PRODUCT_IMAGES}
+                  >
+                    {t("products.dropzoneBrowse")}
+                  </button>
+                  <div className="small text-body-secondary mt-2">{t("products.dropzoneHint")}</div>
+                </div>
+
+                {(fieldErrors.image || fieldErrors.images) && (
+                  <div className="text-danger small mt-2">
+                    {fieldErrors.image || fieldErrors.images}
+                  </div>
+                )}
+
+                {(existingImages.length > 0 || queuedImages.length > 0) && (
+                  <div className="vuexy-media-grid mt-3">
+                    {existingImages.map((img, idx) => {
+                      const isPrimary = primaryImageId === img.id;
+                      const fileLabel = getFileNameFromUrl(img.image_url, `Image #${idx + 1}`);
+                      return (
+                        <div
+                          key={img.id}
+                          className={`vuexy-media-card${isPrimary ? " is-primary" : ""}`}
+                        >
+                          <div className="vuexy-media-thumb-wrap">
+                            <img
+                              src={img.image_url}
+                              alt={editingProduct?.name || fileLabel}
+                            />
+                            {isPrimary && (
+                              <span className="badge text-bg-primary position-absolute top-0 start-0 m-2">
+                                <i className="bi bi-star-fill me-1" aria-hidden="true" />
+                                {t("products.primaryBadge")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="vuexy-media-footer">
+                            <div className="small fw-medium text-truncate" title={fileLabel}>
+                              {fileLabel}
+                            </div>
+                            {!isPrimary && (
+                              <button
+                                type="button"
+                                className="btn btn-sm vuexy-btn-label-primary py-0 px-2 w-100"
+                                style={{ fontSize: "0.72rem" }}
+                                onClick={() => setPrimaryImageId(img.id)}
+                                disabled={saving}
+                              >
+                                <i className="bi bi-star me-1" aria-hidden="true" />
+                                {t("products.setPrimary")}
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="vuexy-media-remove-btn"
+                            aria-label={`Remove image ${img.id}`}
+                            onClick={() => handleMarkExistingImageDeleted(img.id)}
+                            disabled={saving}
+                          >
+                            {t("products.removeFile")}
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {queuedImages.map((entry, idx) => (
+                      <div key={`${entry.file.name}-${idx}`} className="vuexy-media-card">
+                        <div className="vuexy-media-thumb-wrap">
+                          <img src={entry.previewUrl} alt={entry.file.name} />
+                          <span className="badge text-bg-success position-absolute top-0 start-0 m-2">
+                            {t("products.newBadge")}
+                          </span>
+                        </div>
+                        <div className="vuexy-media-footer">
+                          <div className="small fw-medium text-truncate" title={entry.file.name}>
+                            {entry.file.name}
+                          </div>
+                          <div className="small text-body-secondary pos-tabular" style={{ fontSize: "0.72rem" }}>
+                            {formatFileSize(entry.file.size)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="vuexy-media-remove-btn"
+                          aria-label={`Remove queued image ${entry.file.name}`}
+                          onClick={() => handleRemoveQueuedImage(idx)}
+                          disabled={saving}
+                        >
+                          {t("products.removeFile")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {legacyPreviewUrl && !formData.remove_image && existingImages.length === 0 && (
+                  <div className="vuexy-media-grid mt-3">
+                    <div className="vuexy-media-card is-primary">
+                      <div className="vuexy-media-thumb-wrap">
+                        <img src={legacyPreviewUrl} alt="Preview" />
+                        <span className="badge text-bg-primary position-absolute top-0 start-0 m-2">
+                          {t("products.primaryBadge")}
+                        </span>
+                      </div>
+                      <div className="vuexy-media-footer">
+                        <div className="small fw-medium text-truncate">
+                          {getFileNameFromUrl(legacyPreviewUrl, "Cover image")}
+                        </div>
+                      </div>
+                      {editingProduct?.image_url && (
+                        <button
+                          type="button"
+                          className="vuexy-media-remove-btn"
+                          onClick={() => {
+                            setFormData((prev) => ({ ...prev, remove_image: true }));
+                            setLegacyPreviewUrl(null);
+                          }}
+                          disabled={saving}
+                        >
+                          {t("products.removeImage")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="col-12">

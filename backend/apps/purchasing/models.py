@@ -15,6 +15,7 @@ class Supplier(models.Model):
     phone = models.CharField(max_length=40, blank=True, default="", db_index=True)
     email = models.EmailField(blank=True, default="")
     address = models.TextField(blank=True, default="")
+    avatar = models.ImageField(upload_to="suppliers/avatars/%Y/%m/", null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

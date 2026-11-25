@@ -8,6 +8,7 @@ from datetime import timedelta
 import os
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -170,6 +171,10 @@ CORS_ALLOWED_ORIGINS = _env_list(
     default="http://localhost:5173,http://127.0.0.1:5173",
 )
 CORS_ALLOW_CREDENTIALS = _env_bool("CORS_ALLOW_CREDENTIALS", default=True)
+CORS_ALLOW_HEADERS = [
+    *default_headers,
+    "x-idempotency-key",
+]
 
 # Inventory business rules
 INVENTORY_ALLOW_NEGATIVE_STOCK = _env_bool("INVENTORY_ALLOW_NEGATIVE_STOCK", default=False)

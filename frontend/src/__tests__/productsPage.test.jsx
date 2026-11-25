@@ -229,4 +229,92 @@ describe("ProductsPage", () => {
     expect(screen.queryByRole("button", { name: "កែប្រែ" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "លុប" })).not.toBeInTheDocument();
   });
+
+  it("supports uploading multiple images, viewing product gallery, setting primary, and removing images", async () => {
+    if (!URL.createObjectURL) {
+      URL.createObjectURL = vi.fn(() => "blob:mock-product-img");
+    }
+    if (!URL.revokeObjectURL) {
+      URL.revokeObjectURL = vi.fn();
+    }
+
+    productsService.fetchProducts.mockResolvedValue({
+      count: 1,
+      results: [
+        {
+          id: 1,
+          sku: "DRK-100",
+          barcode: "885000123456",
+          name: "Green Tea",
+          name_km: "តែបៃតង",
+          description: "500ml unsweetened",
+          image_url: "http://127.0.0.1:8000/media/products/front.png",
+          images_count: 2,
+          images: [
+            {
+              id: 101,
+              image_url: "http://127.0.0.1:8000/media/products/front.png",
+              is_primary: true,
+              sort_order: 0,
+            },
+            {
+              id: 102,
+              image_url: "http://127.0.0.1:8000/media/products/side.png",
+              is_primary: false,
+              sort_order: 1,
+            },
+          ],
+          category: 10,
+          category_name: "Beverages",
+          category_name_km: "ភេសជ្ជៈ",
+          unit: 20,
+          unit_name: "Bottle",
+          unit_abbreviation: "btl",
+          purchase_cost: "0.55",
+          selling_price: "1.20",
+          wholesale_price: "0.95",
+          tax_rate: "0.00",
+          min_stock_threshold: "10.000",
+          track_inventory: true,
+          is_active: true,
+        },
+      ],
+    });
+    productsService.updateProduct.mockResolvedValue({ id: 1 });
+
+    renderProductsPage();
+
+    await waitFor(() => expect(screen.getByText("+1")).toBeInTheDocument());
+
+    // Product Details modal renders multi-image switcher thumbnails
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    const detailDialog = within(screen.getByRole("dialog"));
+    expect(detailDialog.getByRole("button", { name: "View image 2" })).toBeInTheDocument();
+    fireEvent.click(detailDialog.getByRole("button", { name: "Close" }));
+
+    // Edit Product modal: promote image #102 to primary, remove image #101, and queue 2 new images
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const editDialog = within(screen.getByRole("dialog"));
+    fireEvent.click(editDialog.getByRole("button", { name: "Set Primary" }));
+    fireEvent.click(editDialog.getByRole("button", { name: "Remove image 101" }));
+
+    const file1 = new File(["img1"], "angle1.png", { type: "image/png" });
+    const file2 = new File(["img2"], "angle2.png", { type: "image/png" });
+    fireEvent.change(editDialog.getByLabelText(/Product Images/i), {
+      target: { files: [file1, file2] },
+    });
+
+    fireEvent.click(editDialog.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(productsService.updateProduct).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          images: [file1, file2],
+          delete_image_ids: [101],
+          primary_image_id: 102,
+        })
+      );
+    });
+  });
 });

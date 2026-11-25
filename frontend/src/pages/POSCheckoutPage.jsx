@@ -79,6 +79,7 @@ export default function POSCheckoutPage() {
   // Cart state
   const [cart, setCart] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [orderDiscountType, setOrderDiscountType] = useState("fixed"); // fixed | percent
   const [discountInput, setDiscountInput] = useState("0.00");
   const [orderNotes, setOrderNotes] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(generateIdempotencyKey);
@@ -171,7 +172,16 @@ export default function POSCheckoutPage() {
               : item
           );
         }
-        return [...prev, { product, quantity: 1, quantityInput: "1" }];
+        return [
+          ...prev,
+          {
+            product,
+            quantity: 1,
+            quantityInput: "1",
+            discountType: "fixed",
+            discountInput: "",
+          },
+        ];
       });
     },
     [showToast, t]
@@ -229,64 +239,134 @@ export default function POSCheckoutPage() {
     );
   };
 
+  const updateCartItemDiscount = (productId, updates) => {
+    setCart((prev) =>
+      prev.map((item) =>
+        item.product.id === productId ? { ...item, ...updates } : item
+      )
+    );
+  };
+
   const removeCartItem = (productId) => {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
   const clearCart = () => {
     setCart([]);
+    setOrderDiscountType("fixed");
     setDiscountInput("0.00");
     setOrderNotes("");
     setSelectedCustomerId("");
     setIdempotencyKey(generateIdempotencyKey());
   };
 
-  // Preview totals matching backend proportional discount + tax formula
+  // Preview totals matching backend per-item + all-items (cash or %) discount + tax formula
   const totals = useMemo(() => {
-    const subtotal = roundMoney(
-      cart.reduce(
-        (sum, item) => sum + roundMoney(item.quantity * Number(item.product.selling_price || 0)),
-        0
-      )
-    );
-    const rawDiscount = canDiscount ? Number(discountInput || 0) : 0;
-    const discount = Number.isFinite(rawDiscount) && rawDiscount >= 0 ? roundMoney(rawDiscount) : 0;
-    const clampedDiscount = Math.min(discount, subtotal);
+    let subtotal = 0;
+    let itemDiscountTotal = 0;
 
-    let remainingDiscount = clampedDiscount;
+    const lineCalcs = cart.map((item) => {
+      const lineSubtotal = roundMoney(item.quantity * Number(item.product.selling_price || 0));
+      subtotal = roundMoney(subtotal + lineSubtotal);
+
+      const rawItemDisc = canDiscount ? Number(item.discountInput || 0) : 0;
+      const validVal = Number.isFinite(rawItemDisc) && rawItemDisc > 0 ? rawItemDisc : 0;
+      const discType = item.discountType || "fixed";
+      let lineDiscount = 0;
+      if (discType === "percent") {
+        lineDiscount = roundMoney((lineSubtotal * Math.min(validVal, 100)) / 100);
+      } else {
+        lineDiscount = roundMoney(Math.min(validVal, lineSubtotal));
+      }
+      const netAfterItemDiscount = Math.max(0, roundMoney(lineSubtotal - lineDiscount));
+      itemDiscountTotal = roundMoney(itemDiscountTotal + lineDiscount);
+      return {
+        item,
+        lineSubtotal,
+        lineDiscount,
+        netAfterItemDiscount,
+      };
+    });
+
+    const subtotalAfterItemDiscounts = Math.max(0, roundMoney(subtotal - itemDiscountTotal));
+
+    const rawOrderDisc = canDiscount ? Number(discountInput || 0) : 0;
+    const orderDiscVal = Number.isFinite(rawOrderDisc) && rawOrderDisc > 0 ? rawOrderDisc : 0;
+    const orderDiscountAmount =
+      orderDiscountType === "percent"
+        ? roundMoney((subtotalAfterItemDiscounts * Math.min(orderDiscVal, 100)) / 100)
+        : roundMoney(Math.min(orderDiscVal, subtotalAfterItemDiscounts));
+
+    const totalDiscount = roundMoney(itemDiscountTotal + orderDiscountAmount);
+
+    let remainingOrderDiscount = orderDiscountAmount;
     let taxTotal = 0;
 
-    cart.forEach((item, idx) => {
-      const lineSubtotal = roundMoney(item.quantity * Number(item.product.selling_price || 0));
+    lineCalcs.forEach((calc, idx) => {
       let allocated = 0;
-      if (subtotal > 0 && clampedDiscount > 0) {
-        if (idx === cart.length - 1) {
-          allocated = remainingDiscount;
+      if (subtotalAfterItemDiscounts > 0 && orderDiscountAmount > 0) {
+        if (idx === lineCalcs.length - 1) {
+          allocated = Math.min(remainingOrderDiscount, calc.netAfterItemDiscount);
         } else {
-          allocated = roundMoney((clampedDiscount * lineSubtotal) / subtotal);
-          allocated = Math.min(allocated, remainingDiscount, lineSubtotal);
-          remainingDiscount = roundMoney(remainingDiscount - allocated);
+          allocated = roundMoney(
+            (orderDiscountAmount * calc.netAfterItemDiscount) / subtotalAfterItemDiscounts
+          );
+          allocated = Math.min(allocated, remainingOrderDiscount, calc.netAfterItemDiscount);
+          remainingOrderDiscount = roundMoney(remainingOrderDiscount - allocated);
         }
       }
-      const taxableBase = Math.max(0, roundMoney(lineSubtotal - allocated));
-      const rate = Number(item.product.tax_rate || 0);
+      const taxableBase = Math.max(0, roundMoney(calc.netAfterItemDiscount - allocated));
+      const rate = Number(calc.item.product.tax_rate || 0);
       taxTotal = roundMoney(taxTotal + roundMoney((taxableBase * rate) / 100));
     });
 
-    const grandTotal = roundMoney(subtotal - clampedDiscount + taxTotal);
+    const grandTotal = roundMoney(subtotal - totalDiscount + taxTotal);
     return {
       subtotal,
-      discount: rawDiscount,
+      itemDiscountTotal,
+      subtotalAfterItemDiscounts,
+      orderDiscountValue: orderDiscVal,
+      orderDiscountAmount,
+      discount: totalDiscount,
       taxTotal,
       grandTotal,
+      lineCalcsByProductId: Object.fromEntries(lineCalcs.map((c) => [c.item.product.id, c])),
     };
-  }, [cart, discountInput, canDiscount]);
+  }, [cart, discountInput, orderDiscountType, canDiscount]);
 
   const openPaymentModal = () => {
     if (cart.length === 0) return;
-    if (canDiscount && (Number(discountInput || 0) < 0 || Number(discountInput || 0) > totals.subtotal)) {
-      showToast({ variant: "danger", message: t("sales.discountInvalid") });
-      return;
+    if (canDiscount) {
+      for (const item of cart) {
+        const raw = Number(item.discountInput || 0);
+        const lineSub = roundMoney(item.quantity * Number(item.product.selling_price || 0));
+        if (!Number.isFinite(raw) || raw < 0) {
+          showToast({ variant: "danger", message: t("sales.itemDiscountInvalid") });
+          return;
+        }
+        if ((item.discountType || "fixed") === "percent" && raw > 100) {
+          showToast({ variant: "danger", message: t("sales.discountPercentInvalid") });
+          return;
+        }
+        if ((item.discountType || "fixed") === "fixed" && raw > lineSub) {
+          showToast({ variant: "danger", message: t("sales.itemDiscountInvalid") });
+          return;
+        }
+      }
+
+      const rawOrder = Number(discountInput || 0);
+      if (!Number.isFinite(rawOrder) || rawOrder < 0) {
+        showToast({ variant: "danger", message: t("sales.discountInvalid") });
+        return;
+      }
+      if (orderDiscountType === "percent" && rawOrder > 100) {
+        showToast({ variant: "danger", message: t("sales.discountPercentInvalid") });
+        return;
+      }
+      if (orderDiscountType === "fixed" && rawOrder > totals.subtotalAfterItemDiscounts) {
+        showToast({ variant: "danger", message: t("sales.discountInvalid") });
+        return;
+      }
     }
     setPaymentError("");
     setPaymentMethod("cash");
@@ -329,11 +409,21 @@ export default function POSCheckoutPage() {
 
     const payload = {
       customer: selectedCustomerId ? Number(selectedCustomerId) : null,
-      items: cart.map((item) => ({
-        product: item.product.id,
-        quantity: String(item.quantity),
-      })),
-      discount_amount: canDiscount ? Number(discountInput || 0).toFixed(2) : "0.00",
+      items: cart.map((item) => {
+        const entry = {
+          product: item.product.id,
+          quantity: String(item.quantity),
+        };
+        const itemDiscVal = canDiscount ? Number(item.discountInput || 0) : 0;
+        if (canDiscount && Number.isFinite(itemDiscVal) && itemDiscVal > 0) {
+          entry.discount_type = item.discountType || "fixed";
+          entry.discount_value = itemDiscVal.toFixed(2);
+        }
+        return entry;
+      }),
+      discount_type: canDiscount ? orderDiscountType : "fixed",
+      discount_value: canDiscount ? Number(discountInput || 0).toFixed(2) : "0.00",
+      discount_amount: canDiscount ? totals.orderDiscountAmount.toFixed(2) : "0.00",
       notes: orderNotes.trim(),
       idempotency_key: idempotencyKey,
     };
@@ -359,7 +449,7 @@ export default function POSCheckoutPage() {
       payload.payments = validLines;
     } else {
       const paidNum = roundMoney(Number(paidAmountInput || 0));
-      if (paidNum < totals.grandTotal) {
+      if (!Number.isFinite(paidNum) || paidNum < totals.grandTotal) {
         setPaymentError(t("sales.insufficientPayment"));
         return;
       }
@@ -601,9 +691,15 @@ export default function POSCheckoutPage() {
                 {t("sales.emptyCart")}
               </div>
             ) : (
-              <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: "340px", overflowY: "auto" }}>
+              <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: "360px", overflowY: "auto" }}>
                 {cart.map((item) => {
-                  const lineSub = roundMoney(item.quantity * Number(item.product.selling_price || 0));
+                  const calc = totals.lineCalcsByProductId[item.product.id];
+                  const lineSub = calc
+                    ? calc.lineSubtotal
+                    : roundMoney(item.quantity * Number(item.product.selling_price || 0));
+                  const lineDisc = calc ? calc.lineDiscount : 0;
+                  const lineNet = calc ? calc.netAfterItemDiscount : lineSub;
+                  const itemDiscType = item.discountType || "fixed";
                   return (
                     <div key={item.product.id} className="border rounded p-2">
                       <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
@@ -651,29 +747,155 @@ export default function POSCheckoutPage() {
                             +
                           </button>
                         </div>
-                        <span className="fw-semibold pos-tabular">{formatMoney(lineSub)}</span>
+                        <div className="text-end pos-tabular">
+                          {lineDisc > 0 ? (
+                            <>
+                              <span className="small text-decoration-line-through text-body-secondary me-1">
+                                {formatMoney(lineSub)}
+                              </span>
+                              <span className="fw-semibold text-primary">
+                                {formatMoney(lineNet)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="fw-semibold">{formatMoney(lineSub)}</span>
+                          )}
+                        </div>
                       </div>
+
+                      {canDiscount ? (
+                        <div className="d-flex align-items-center justify-content-between gap-2 mt-2 pt-2 border-top">
+                          <span className="small text-body-secondary text-nowrap">
+                            {t("sales.itemDiscountLabel")}
+                          </span>
+                          <div className="d-flex align-items-center gap-1">
+                            <div
+                              className="btn-group btn-group-sm"
+                              role="group"
+                              aria-label={`Discount type for ${item.product.name}`}
+                            >
+                              <button
+                                type="button"
+                                className={`btn ${
+                                  itemDiscType === "fixed" ? "btn-primary" : "btn-outline-secondary"
+                                } px-2`}
+                                aria-label={`Cash discount for ${item.product.name}`}
+                                onClick={() =>
+                                  updateCartItemDiscount(item.product.id, { discountType: "fixed" })
+                                }
+                              >
+                                $
+                              </button>
+                              <button
+                                type="button"
+                                className={`btn ${
+                                  itemDiscType === "percent" ? "btn-primary" : "btn-outline-secondary"
+                                } px-2`}
+                                aria-label={`Percent discount for ${item.product.name}`}
+                                onClick={() =>
+                                  updateCartItemDiscount(item.product.id, { discountType: "percent" })
+                                }
+                              >
+                                %
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              step={itemDiscType === "percent" ? "1" : "0.01"}
+                              min="0"
+                              max={itemDiscType === "percent" ? "100" : undefined}
+                              className="form-control form-control-sm pos-tabular text-end"
+                              style={{ width: "82px" }}
+                              placeholder={itemDiscType === "percent" ? "0%" : "0.00"}
+                              aria-label={`Discount for ${item.product.name}`}
+                              value={item.discountInput ?? ""}
+                              onChange={(e) =>
+                                updateCartItemDiscount(item.product.id, {
+                                  discountInput: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* Order-level discount (RBAC gated) */}
+            {/* Order-level ("All Items") discount with Cash ($) or Percentage (%) toggle */}
             {canDiscount ? (
               <div className="mb-3">
-                <label htmlFor="pos-discount-input" className="form-label small fw-semibold mb-1">
-                  {t("sales.discountLabel")}
-                </label>
-                <input
-                  id="pos-discount-input"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="form-control form-control-sm pos-tabular"
-                  value={discountInput}
-                  onChange={(e) => setDiscountInput(e.target.value)}
-                />
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <label htmlFor="pos-discount-input" className="form-label small fw-semibold mb-0">
+                    {t("sales.orderDiscountLabel")}
+                  </label>
+                  <div
+                    className="btn-group btn-group-sm"
+                    role="group"
+                    aria-label="All-items discount type"
+                  >
+                    <button
+                      type="button"
+                      className={`btn ${
+                        orderDiscountType === "fixed" ? "btn-primary" : "btn-outline-secondary"
+                      }`}
+                      onClick={() => {
+                        setOrderDiscountType("fixed");
+                        setDiscountInput("0.00");
+                      }}
+                    >
+                      {t("sales.discountTypeCash")}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${
+                        orderDiscountType === "percent" ? "btn-primary" : "btn-outline-secondary"
+                      }`}
+                      onClick={() => {
+                        setOrderDiscountType("percent");
+                        setDiscountInput("0");
+                      }}
+                    >
+                      {t("sales.discountTypePercent")}
+                    </button>
+                  </div>
+                </div>
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text">
+                    {orderDiscountType === "percent" ? "%" : "$"}
+                  </span>
+                  <input
+                    id="pos-discount-input"
+                    type="number"
+                    step={orderDiscountType === "percent" ? "1" : "0.01"}
+                    min="0"
+                    max={orderDiscountType === "percent" ? "100" : undefined}
+                    className="form-control pos-tabular"
+                    value={discountInput}
+                    onChange={(e) => setDiscountInput(e.target.value)}
+                  />
+                  {orderDiscountType === "percent" && totals.orderDiscountAmount > 0 ? (
+                    <span className="input-group-text text-danger pos-tabular">
+                      -{formatMoney(totals.orderDiscountAmount)}
+                    </span>
+                  ) : null}
+                </div>
+                {orderDiscountType === "percent" ? (
+                  <div className="d-flex flex-wrap gap-1 mt-1">
+                    {[5, 10, 15, 20].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm py-0 px-2 pos-tabular"
+                        onClick={() => setDiscountInput(String(pct))}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -683,10 +905,31 @@ export default function POSCheckoutPage() {
                 <span className="text-body-secondary">{t("sales.subtotalLabel")}</span>
                 <span className="pos-tabular">{formatMoney(totals.subtotal)}</span>
               </div>
+              {canDiscount && totals.itemDiscountTotal > 0 ? (
+                <div className="d-flex justify-content-between small py-1">
+                  <span className="text-body-secondary">{t("sales.itemDiscountsSummary")}</span>
+                  <span className="pos-tabular text-danger">
+                    -{formatMoney(totals.itemDiscountTotal)}
+                  </span>
+                </div>
+              ) : null}
               {canDiscount ? (
                 <div className="d-flex justify-content-between small py-1">
-                  <span className="text-body-secondary">{t("sales.discountLabel")}</span>
-                  <span className="pos-tabular text-danger">-{formatMoney(totals.discount)}</span>
+                  <span className="text-body-secondary">
+                    {totals.itemDiscountTotal > 0
+                      ? t("sales.orderDiscountLabel")
+                      : t("sales.discountLabel")}
+                    {orderDiscountType === "percent" && totals.orderDiscountValue > 0
+                      ? ` (${totals.orderDiscountValue}%)`
+                      : ""}
+                  </span>
+                  <span className="pos-tabular text-danger">
+                    -{formatMoney(
+                      totals.itemDiscountTotal > 0
+                        ? totals.orderDiscountAmount
+                        : totals.discount
+                    )}
+                  </span>
                 </div>
               ) : null}
               <div className="d-flex justify-content-between small py-1">

@@ -13,6 +13,8 @@ import {
   LoadingState,
   PageHeader,
   Pagination,
+  SupplierAvatar,
+  SupplierAvatarField,
 } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 import { usePreferences } from "../contexts/PreferencesContext";
@@ -41,6 +43,8 @@ const EMPTY_FORM = {
   email: "",
   address: "",
   is_active: true,
+  avatar: null,
+  remove_avatar: false,
 };
 
 function downloadTemplate(filename, content) {
@@ -79,6 +83,9 @@ export default function SuppliersPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // View Supplier Profile modal
+  const [viewingSupplier, setViewingSupplier] = useState(null);
 
   // Import CSV modal
   const [importOpen, setImportOpen] = useState(false);
@@ -132,6 +139,8 @@ export default function SuppliersPage() {
       email: row.email || "",
       address: row.address || "",
       is_active: Boolean(row.is_active),
+      avatar: null,
+      remove_avatar: false,
     });
     setFormError("");
     setModalOpen(true);
@@ -155,6 +164,11 @@ export default function SuppliersPage() {
         address: form.address.trim(),
         is_active: form.is_active,
       };
+      if (form.avatar instanceof File) {
+        payload.avatar = form.avatar;
+      } else if (editing && form.remove_avatar) {
+        payload.remove_avatar = true;
+      }
       if (editing) {
         await updateSupplier(editing.id, payload);
       } else {
@@ -216,7 +230,29 @@ export default function SuppliersPage() {
   };
 
   const columns = [
-    { key: "name", header: t("purchasing.supplierNameLabel"), cellClassName: "fw-semibold" },
+    {
+      key: "name",
+      header: t("purchasing.supplierNameLabel"),
+      render: (row) => (
+        <div className="d-flex align-items-center gap-2">
+          <SupplierAvatar supplier={row} size="md" />
+          <div className="min-w-0">
+            <button
+              type="button"
+              className="btn btn-link p-0 text-start fw-semibold text-decoration-none"
+              onClick={() => setViewingSupplier(row)}
+            >
+              {row.name}
+            </button>
+            {row.address ? (
+              <div className="small text-body-secondary text-truncate" style={{ maxWidth: "220px" }}>
+                {row.address}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ),
+    },
     {
       key: "contact_name",
       header: t("purchasing.contactNameLabel"),
@@ -243,25 +279,35 @@ export default function SuppliersPage() {
       header: t("purchasing.colActions"),
       headerClassName: "text-end",
       cellClassName: "text-end",
-      render: (row) =>
-        canEdit ? (
-          <div className="btn-group btn-group-sm">
-            <button
-              type="button"
-              className="btn btn-outline-primary"
-              onClick={() => openEdit(row)}
-            >
-              {t("controls.edit")}
-            </button>
-            <button
-              type="button"
-              className={`btn ${row.is_active ? "btn-outline-warning" : "btn-outline-success"}`}
-              onClick={() => handleToggleActive(row)}
-            >
-              {row.is_active ? t("controls.deactivate") : t("controls.activate")}
-            </button>
-          </div>
-        ) : null,
+      render: (row) => (
+        <div className="btn-group btn-group-sm">
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => setViewingSupplier(row)}
+          >
+            {t("purchasing.viewProfile")}
+          </button>
+          {canEdit ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline-primary"
+                onClick={() => openEdit(row)}
+              >
+                {t("controls.edit")}
+              </button>
+              <button
+                type="button"
+                className={`btn ${row.is_active ? "btn-outline-warning" : "btn-outline-success"}`}
+                onClick={() => handleToggleActive(row)}
+              >
+                {row.is_active ? t("controls.deactivate") : t("controls.activate")}
+              </button>
+            </>
+          ) : null}
+        </div>
+      ),
     },
   ];
 
@@ -356,6 +402,84 @@ export default function SuppliersPage() {
         )}
       </AppCard>
 
+      {/* Supplier Profile Modal */}
+      <AppModal
+        isOpen={Boolean(viewingSupplier)}
+        onClose={() => setViewingSupplier(null)}
+        title={t("purchasing.supplierProfileTitle")}
+        size="md"
+        footer={
+          viewingSupplier ? (
+            <div className="d-flex flex-wrap justify-content-end gap-2">
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const target = viewingSupplier;
+                    setViewingSupplier(null);
+                    openEdit(target);
+                  }}
+                >
+                  <i className="bi bi-pencil me-1" aria-hidden="true" />
+                  {t("controls.edit")}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setViewingSupplier(null)}
+              >
+                {t("controls.close")}
+              </button>
+            </div>
+          ) : null
+        }
+      >
+        {viewingSupplier ? (
+          <div className="d-flex flex-column gap-3">
+            <div className="d-flex flex-wrap align-items-center gap-3 p-3 rounded border bg-body-tertiary">
+              <SupplierAvatar supplier={viewingSupplier} size="lg" />
+              <div className="flex-grow-1 min-w-0">
+                <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                  <h5 className="mb-0 fw-semibold">{viewingSupplier.name}</h5>
+                  <span
+                    className={`badge ${viewingSupplier.is_active ? "text-bg-success" : "text-bg-secondary"}`}
+                  >
+                    {viewingSupplier.is_active ? t("status.active") : t("status.inactive")}
+                  </span>
+                </div>
+                {viewingSupplier.contact_name ? (
+                  <div className="small text-body-secondary">
+                    <i className="bi bi-person me-1" aria-hidden="true" />
+                    {viewingSupplier.contact_name}
+                  </div>
+                ) : null}
+                <div className="small text-body-secondary mt-1 pos-tabular">
+                  <i className="bi bi-receipt-cutoff me-1" aria-hidden="true" />
+                  {t("purchasing.tabPurchases")}: <strong>{viewingSupplier.purchases_count ?? 0}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="row g-3 small">
+              <div className="col-12 col-sm-6">
+                <div className="text-body-secondary">{t("purchasing.phoneLabel")}</div>
+                <div className="fw-medium">{viewingSupplier.phone || "—"}</div>
+              </div>
+              <div className="col-12 col-sm-6">
+                <div className="text-body-secondary">{t("purchasing.emailLabel")}</div>
+                <div className="fw-medium text-break">{viewingSupplier.email || "—"}</div>
+              </div>
+              <div className="col-12">
+                <div className="text-body-secondary">{t("purchasing.addressLabel")}</div>
+                <div className="fw-medium">{viewingSupplier.address || "—"}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </AppModal>
+
       {/* Create / Edit Modal */}
       <AppModal
         isOpen={modalOpen}
@@ -374,6 +498,22 @@ export default function SuppliersPage() {
               className="py-2 small mb-3"
             />
           ) : null}
+          <div className="mb-3">
+            <SupplierAvatarField
+              inputId="sup-ctrl-avatar"
+              supplier={editing}
+              name={form.name}
+              file={form.avatar}
+              removeAvatar={form.remove_avatar}
+              disabled={saving}
+              onFileSelect={(picked) =>
+                setForm((p) => ({ ...p, avatar: picked, remove_avatar: false }))
+              }
+              onRemove={() => setForm((p) => ({ ...p, avatar: null, remove_avatar: true }))}
+              onValidationError={(msg) => setFormError(msg)}
+              t={t}
+            />
+          </div>
           <FormInput
             id="sup-ctrl-name"
             className="mb-3"

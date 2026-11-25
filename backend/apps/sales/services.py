@@ -61,6 +61,22 @@ def _generate_sale_number() -> str:
     return f"{prefix}{seq:04d}"
 
 
+_UNSET = object()
+
+
+def _schedule_avatar_cleanup(old_storage, old_name: str) -> None:
+    if not old_name or old_storage is None:
+        return
+
+    def _delete():
+        try:
+            old_storage.delete(old_name)
+        except Exception:
+            pass
+
+    transaction.on_commit(_delete)
+
+
 @transaction.atomic
 def create_customer(
     *,
@@ -70,6 +86,7 @@ def create_customer(
     email: str = "",
     address: str = "",
     notes: str = "",
+    avatar=None,
     is_active: bool = True,
     ip_address: str | None = None,
 ) -> Customer:
@@ -83,6 +100,7 @@ def create_customer(
         email=(email or "").strip(),
         address=(address or "").strip(),
         notes=(notes or "").strip(),
+        avatar=avatar,
         is_active=is_active,
         created_by=actor,
     )
@@ -92,7 +110,11 @@ def create_customer(
         target_type="Customer",
         target_id=customer.id,
         ip_address=ip_address,
-        metadata={"name": customer.name, "phone": customer.phone},
+        metadata={
+            "name": customer.name,
+            "phone": customer.phone,
+            "has_avatar": bool(customer.avatar),
+        },
     )
     return customer
 
@@ -107,6 +129,8 @@ def update_customer(
     email: str | None = None,
     address: str | None = None,
     notes: str | None = None,
+    avatar=_UNSET,
+    remove_avatar: bool = False,
     is_active: bool | None = None,
     ip_address: str | None = None,
 ) -> Customer:
@@ -147,6 +171,26 @@ def update_customer(
     if is_active is not None and is_active != customer.is_active:
         customer.is_active = is_active
         changed_fields.append("is_active")
+
+    old_avatar_name = customer.avatar.name if customer.avatar else ""
+    old_avatar_storage = customer.avatar.storage if customer.avatar else None
+
+    if remove_avatar and not (avatar is not _UNSET and avatar is not None):
+        if customer.avatar:
+            customer.avatar = None
+            changed_fields.append("avatar")
+            _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+    elif avatar is not _UNSET:
+        if avatar is None:
+            if customer.avatar:
+                customer.avatar = None
+                changed_fields.append("avatar")
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+        else:
+            customer.avatar = avatar
+            changed_fields.append("avatar")
+            if old_avatar_name:
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
 
     if changed_fields:
         customer.save(update_fields=[*changed_fields, "updated_at"])
@@ -261,11 +305,42 @@ def import_customers_csv(
     }
 
 
+def _resolve_discount_amount(
+    *,
+    base_amount: Decimal,
+    discount_type: str,
+    discount_value: Decimal,
+    error_field: str,
+    label: str,
+) -> tuple[str, Decimal, Decimal]:
+    clean_type = (discount_type or Sale.DiscountType.FIXED).strip().lower()
+    if clean_type not in (Sale.DiscountType.FIXED, Sale.DiscountType.PERCENT):
+        raise ValidationError({error_field: [f"{label}: unsupported discount type '{discount_type}'."]})
+
+    clean_value = _quantize_money(discount_value, error_field)
+    if clean_value < Decimal("0.00"):
+        raise ValidationError({error_field: [f"{label}: discount cannot be negative."]})
+
+    if clean_type == Sale.DiscountType.PERCENT:
+        if clean_value > Decimal("100.00"):
+            raise ValidationError({error_field: [f"{label}: percentage discount cannot exceed 100%."]})
+        resolved = ((base_amount * clean_value) / Decimal("100.00")).quantize(
+            MONEY_QUANT, rounding=ROUND_HALF_UP
+        )
+        return clean_type, clean_value, min(resolved, base_amount)
+
+    if clean_value > base_amount:
+        raise ValidationError({error_field: [f"{label}: discount cannot exceed subtotal ({base_amount})."]})
+    return clean_type, clean_value, clean_value
+
+
 def _prepare_sale_lines(
     items: list[dict[str, Any]],
     discount_amount: Decimal,
     order_tax_rate: Decimal | None,
-) -> tuple[list[dict[str, Any]], Decimal, Decimal, Decimal, Decimal]:
+    discount_type: str = Sale.DiscountType.FIXED,
+    discount_value: Decimal | None = None,
+) -> tuple[list[dict[str, Any]], Decimal, Decimal, str, Decimal, Decimal, Decimal, Decimal, Decimal]:
     if not items:
         raise ValidationError({"items": ["At least one product item is required for checkout."]})
 
@@ -289,6 +364,7 @@ def _prepare_sale_lines(
 
     raw_lines: list[dict[str, Any]] = []
     subtotal = Decimal("0.00")
+    item_discount_total = Decimal("0.00")
 
     for idx, entry in enumerate(items):
         prod = products_by_id.get(entry["product"].id)
@@ -316,6 +392,23 @@ def _prepare_sale_lines(
         line_subtotal = (qty * unit_price).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
         subtotal += line_subtotal
 
+        raw_item_disc_type = entry.get("discount_type") or Sale.DiscountType.FIXED
+        raw_item_disc_val = entry.get("discount_value")
+        if raw_item_disc_val is None:
+            raw_item_disc_val = Decimal("0.00")
+
+        item_disc_type, item_disc_val, line_discount = _resolve_discount_amount(
+            base_amount=line_subtotal,
+            discount_type=raw_item_disc_type,
+            discount_value=raw_item_disc_val,
+            error_field="items",
+            label=f"Row {idx + 1} ({prod.sku})",
+        )
+        line_net_after_item_discount = (line_subtotal - line_discount).quantize(
+            MONEY_QUANT, rounding=ROUND_HALF_UP
+        )
+        item_discount_total += line_discount
+
         effective_tax_rate = (
             prod.tax_rate
             if prod.tax_rate > Decimal("0.00")
@@ -329,41 +422,67 @@ def _prepare_sale_lines(
                 "unit_price": unit_price,
                 "tax_rate": effective_tax_rate,
                 "line_subtotal": line_subtotal,
+                "discount_type": item_disc_type,
+                "discount_value": item_disc_val,
+                "line_discount": line_discount,
+                "line_net_after_item_discount": line_net_after_item_discount,
             }
         )
 
     subtotal = subtotal.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
-    clean_discount = _quantize_money(discount_amount, "discount_amount")
-    if clean_discount < Decimal("0.00"):
-        raise ValidationError({"discount_amount": ["Discount cannot be negative."]})
-    if clean_discount > subtotal:
-        raise ValidationError({"discount_amount": ["Discount cannot exceed sale subtotal."]})
+    item_discount_total = item_discount_total.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+    subtotal_after_item_discounts = max(
+        Decimal("0.00"), (subtotal - item_discount_total).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+    )
 
-    # Allocate order-level discount proportionally across lines before calculating tax.
+    # Order-level ("All Items") discount: discount_value + discount_type takes precedence; fallback to legacy discount_amount
+    if discount_value is not None:
+        order_disc_type, order_disc_val, order_disc_amount = _resolve_discount_amount(
+            base_amount=subtotal_after_item_discounts,
+            discount_type=discount_type,
+            discount_value=discount_value,
+            error_field="discount_amount",
+            label="Order discount",
+        )
+    else:
+        order_disc_type, order_disc_val, order_disc_amount = _resolve_discount_amount(
+            base_amount=subtotal_after_item_discounts,
+            discount_type=discount_type,
+            discount_value=discount_amount,
+            error_field="discount_amount",
+            label="Order discount",
+        )
+
+    total_discount = (item_discount_total + order_disc_amount).quantize(
+        MONEY_QUANT, rounding=ROUND_HALF_UP
+    )
+
+    # Allocate order-level discount proportionally across post-item-discount line subtotals before tax.
     tax_total = Decimal("0.00")
-    remaining_discount = clean_discount
+    remaining_order_discount = order_disc_amount
     prepared_lines: list[dict[str, Any]] = []
 
     for idx, line in enumerate(raw_lines):
-        if subtotal > Decimal("0.00") and clean_discount > Decimal("0.00"):
+        net_before_order = line["line_net_after_item_discount"]
+        if subtotal_after_item_discounts > Decimal("0.00") and order_disc_amount > Decimal("0.00"):
             if idx == len(raw_lines) - 1:
-                allocated_discount = remaining_discount
+                allocated_order_discount = min(remaining_order_discount, net_before_order)
             else:
-                allocated_discount = (
-                    (clean_discount * line["line_subtotal"]) / subtotal
+                allocated_order_discount = (
+                    (order_disc_amount * net_before_order) / subtotal_after_item_discounts
                 ).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
-                allocated_discount = min(allocated_discount, remaining_discount, line["line_subtotal"])
-                remaining_discount -= allocated_discount
+                allocated_order_discount = min(
+                    allocated_order_discount, remaining_order_discount, net_before_order
+                )
+                remaining_order_discount -= allocated_order_discount
         else:
-            allocated_discount = Decimal("0.00")
+            allocated_order_discount = Decimal("0.00")
 
-        taxable_base = max(Decimal("0.00"), line["line_subtotal"] - allocated_discount)
+        taxable_base = max(Decimal("0.00"), net_before_order - allocated_order_discount)
         line_tax = (
             (taxable_base * line["tax_rate"]) / Decimal("100.00")
         ).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
-        line_total = (line["line_subtotal"] - allocated_discount + line_tax).quantize(
-            MONEY_QUANT, rounding=ROUND_HALF_UP
-        )
+        line_total = (taxable_base + line_tax).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
         tax_total += line_tax
 
         prepared_lines.append(
@@ -375,10 +494,20 @@ def _prepare_sale_lines(
         )
 
     tax_total = tax_total.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
-    grand_total = (subtotal - clean_discount + tax_total).quantize(
+    grand_total = (subtotal - total_discount + tax_total).quantize(
         MONEY_QUANT, rounding=ROUND_HALF_UP
     )
-    return prepared_lines, subtotal, clean_discount, tax_total, grand_total
+    return (
+        prepared_lines,
+        subtotal,
+        item_discount_total,
+        order_disc_type,
+        order_disc_val,
+        order_disc_amount,
+        total_discount,
+        tax_total,
+        grand_total,
+    )
 
 
 def _normalize_payments(
@@ -480,6 +609,8 @@ def checkout_sale(
     items: list[dict[str, Any]],
     customer: Customer | None = None,
     discount_amount: Decimal = Decimal("0.00"),
+    discount_type: str = Sale.DiscountType.FIXED,
+    discount_value: Decimal | None = None,
     order_tax_rate: Decimal | None = None,
     payments: list[dict[str, Any]] | None = None,
     payment_method: str | None = None,
@@ -491,8 +622,8 @@ def checkout_sale(
 ) -> tuple[Sale, bool]:
     """
     Atomically complete a POS sale:
-    - Recomputes all prices, discounts, tax, totals, and change server-side in Decimal.
-    - Enforces `sales.discount` server-side when discount_amount > 0.
+    - Recomputes all prices, per-item & order-level discounts (cash or %), tax, totals, and change server-side in Decimal.
+    - Enforces `sales.discount` server-side when any item or order discount is > 0.
     - Supports idempotent retries via `idempotency_key`.
     - Deducts stock exclusively through `apps.inventory.services.record_stock_movement`.
     - Rolls back everything if any item fails validation or lacks sufficient stock.
@@ -509,8 +640,13 @@ def checkout_sale(
     if customer is not None and not customer.is_active:
         raise ValidationError({"customer": ["Selected customer is inactive."]})
 
-    clean_discount_check = _quantize_money(discount_amount, "discount_amount")
-    if clean_discount_check > Decimal("0.00") and not (
+    order_disc_input = discount_value if discount_value is not None else discount_amount
+    has_order_discount = _quantize_money(order_disc_input, "discount_amount") > Decimal("0.00")
+    has_item_discount = any(
+        _quantize_money(entry.get("discount_value") or Decimal("0.00"), "items") > Decimal("0.00")
+        for entry in (items or [])
+    )
+    if (has_order_discount or has_item_discount) and not (
         getattr(actor, "is_super_admin_user", False) or actor.has_rbac_permission("sales.discount")
     ):
         raise PermissionDenied("You do not have permission to apply discounts to sales.")
@@ -519,9 +655,21 @@ def checkout_sale(
         if order_tax_rate < Decimal("0.00") or order_tax_rate > Decimal("100.00"):
             raise ValidationError({"tax_rate": ["Tax rate must be between 0 and 100."]})
 
-    prepared_lines, subtotal, clean_discount, tax_total, grand_total = _prepare_sale_lines(
+    (
+        prepared_lines,
+        subtotal,
+        item_discount_total,
+        order_disc_type,
+        order_disc_val,
+        order_disc_amount,
+        total_discount,
+        tax_total,
+        grand_total,
+    ) = _prepare_sale_lines(
         items=items,
         discount_amount=discount_amount,
+        discount_type=discount_type,
+        discount_value=discount_value,
         order_tax_rate=order_tax_rate,
     )
 
@@ -551,7 +699,11 @@ def checkout_sale(
                 customer_name_snapshot=customer.name if customer else "Walk-in Customer",
                 status=Sale.Status.COMPLETED,
                 subtotal=subtotal,
-                discount_amount=clean_discount,
+                item_discount_total=item_discount_total,
+                order_discount_type=order_disc_type,
+                order_discount_value=order_disc_val,
+                order_discount_amount=order_disc_amount,
+                discount_amount=total_discount,
                 tax_amount=tax_total,
                 total_amount=grand_total,
                 paid_amount=total_paid,
@@ -589,6 +741,9 @@ def checkout_sale(
                     unit_cost_snapshot=cost_snapshot,
                     tax_rate_snapshot=line["tax_rate"],
                     line_subtotal=line["line_subtotal"],
+                    discount_type=line["discount_type"],
+                    discount_value=line["discount_value"],
+                    line_discount=line["line_discount"],
                     line_tax=line["line_tax"],
                     line_total=line["line_total"],
                 )
@@ -623,7 +778,7 @@ def checkout_sale(
                     "items_count": len(prepared_lines),
                 },
             )
-            if clean_discount > Decimal("0.00"):
+            if total_discount > Decimal("0.00"):
                 log_audit_event(
                     actor=actor,
                     action="sale.discount_applied",
@@ -632,7 +787,11 @@ def checkout_sale(
                     ip_address=ip_address,
                     metadata={
                         "sale_number": sale.sale_number,
-                        "discount_amount": str(clean_discount),
+                        "item_discount_total": str(item_discount_total),
+                        "order_discount_type": order_disc_type,
+                        "order_discount_value": str(order_disc_val),
+                        "order_discount_amount": str(order_disc_amount),
+                        "discount_amount": str(total_discount),
                         "subtotal": str(subtotal),
                         "total_amount": str(grand_total),
                     },

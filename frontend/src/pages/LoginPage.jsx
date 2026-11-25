@@ -50,20 +50,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center py-5 px-3">
-      <div className="w-100" style={{ maxWidth: "420px" }}>
-        <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary mb-3" style={{ width: "56px", height: "56px" }}>
-            <i className="bi bi-shop fs-3" aria-hidden="true" />
-          </div>
-          <h1 className="h4 fw-semibold mb-1">{APP_NAME}</h1>
-          <p className="text-body-secondary small mb-0">
-            Sign in with your assigned POS account
-          </p>
-        </div>
-
-        <div className="card pos-surface shadow-sm">
-          <div className="card-body p-4">
+    <div className="min-vh-100 vuexy-auth-wrapper d-flex align-items-center justify-content-center py-5 px-3">
+      <div className="w-100" style={{ maxWidth: "440px" }}>
+        <div className="card pos-surface">
+          <div className="card-body p-4 p-sm-5">
+            <div className="d-flex align-items-center justify-content-center gap-2 mb-4">
+              <span className="vuexy-brand-mark" style={{ width: "40px", height: "40px" }} aria-hidden="true">
+                <i className="bi bi-shop fs-4" />
+              </span>
+              <span className="h4 fw-bold mb-0">{APP_NAME}</span>
+            </div>
+            <div className="mb-4">
+              <h1 className="h5 fw-semibold mb-1">Welcome back</h1>
+              <p className="text-body-secondary small mb-0">
+                Sign in with your assigned POS account to continue
+              </p>
+            </div>
             {error && (
               <div className="mb-3">
                 <StatusAlert

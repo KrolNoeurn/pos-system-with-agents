@@ -8,8 +8,35 @@ from apps.catalog.models import Product
 from apps.sales.models import Customer, Sale, SaleItem, SalePayment
 
 
+MAX_CUSTOMER_AVATAR_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+class MultipartSafeBooleanField(serializers.BooleanField):
+    """Preserve omitted boolean fields as empty/default even on multipart/form-data requests."""
+
+    def get_value(self, dictionary):
+        if self.field_name not in dictionary:
+            return serializers.empty
+        return super().get_value(dictionary)
+
+
+def _validate_customer_avatar_file(value):
+    if value is not None and getattr(value, "size", 0) > MAX_CUSTOMER_AVATAR_BYTES:
+        raise serializers.ValidationError("Customer profile image size must not exceed 5 MB.")
+    return value
+
+
+def _build_media_url(request, file_field) -> str | None:
+    if not file_field:
+        return None
+    if request is not None:
+        return request.build_absolute_uri(file_field.url)
+    return file_field.url
+
+
 class CustomerSerializer(serializers.ModelSerializer):
     sales_count = serializers.IntegerField(read_only=True, default=0)
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
@@ -20,12 +47,17 @@ class CustomerSerializer(serializers.ModelSerializer):
             "email",
             "address",
             "notes",
+            "avatar",
+            "avatar_url",
             "is_active",
             "sales_count",
             "created_at",
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_avatar_url(self, obj) -> str | None:
+        return _build_media_url(self.context.get("request"), obj.avatar)
 
 
 class CustomerWriteSerializer(serializers.Serializer):
@@ -34,13 +66,17 @@ class CustomerWriteSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True, default="")
     address = serializers.CharField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
-    is_active = serializers.BooleanField(required=False, default=True)
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    is_active = MultipartSafeBooleanField(required=False, default=True)
 
     def validate_name(self, value: str) -> str:
         clean = value.strip()
         if not clean:
             raise serializers.ValidationError("Customer name cannot be blank.")
         return clean
+
+    def validate_avatar(self, value):
+        return _validate_customer_avatar_file(value)
 
 
 class CustomerUpdateSerializer(serializers.Serializer):
@@ -49,13 +85,18 @@ class CustomerUpdateSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     address = serializers.CharField(required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
-    is_active = serializers.BooleanField(required=False)
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    remove_avatar = MultipartSafeBooleanField(required=False, default=False)
+    is_active = MultipartSafeBooleanField(required=False)
 
     def validate_name(self, value: str) -> str:
         clean = value.strip()
         if not clean:
             raise serializers.ValidationError("Customer name cannot be blank.")
         return clean
+
+    def validate_avatar(self, value):
+        return _validate_customer_avatar_file(value)
 
 
 class POSCatalogProductSerializer(serializers.ModelSerializer):
@@ -95,12 +136,19 @@ class POSCatalogProductSerializer(serializers.ModelSerializer):
         return str(bal.quantity_on_hand)
 
     def get_image_url(self, obj) -> str | None:
-        if not obj.image:
-            return None
         request = self.context.get("request")
+        gallery = list(obj.images.all())
+        target = None
+        if gallery:
+            primary = next((img for img in gallery if img.is_primary), gallery[0])
+            target = primary.image
+        elif obj.image:
+            target = obj.image
+        if not target:
+            return None
         if request is not None:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+            return request.build_absolute_uri(target.url)
+        return target.url
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
@@ -117,6 +165,9 @@ class SaleItemSerializer(serializers.ModelSerializer):
             "unit_cost_snapshot",
             "tax_rate_snapshot",
             "line_subtotal",
+            "discount_type",
+            "discount_value",
+            "line_discount",
             "line_tax",
             "line_total",
         ]
@@ -138,6 +189,7 @@ class SalePaymentSerializer(serializers.ModelSerializer):
 
 class SaleListSerializer(serializers.ModelSerializer):
     cashier_username = serializers.CharField(source="cashier.username", read_only=True)
+    customer_avatar_url = serializers.SerializerMethodField()
     items_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
@@ -147,8 +199,13 @@ class SaleListSerializer(serializers.ModelSerializer):
             "sale_number",
             "customer",
             "customer_name_snapshot",
+            "customer_avatar_url",
             "status",
             "subtotal",
+            "item_discount_total",
+            "order_discount_type",
+            "order_discount_value",
+            "order_discount_amount",
             "discount_amount",
             "tax_amount",
             "total_amount",
@@ -162,10 +219,15 @@ class SaleListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_customer_avatar_url(self, obj) -> str | None:
+        customer = getattr(obj, "customer", None)
+        return _build_media_url(self.context.get("request"), customer.avatar if customer else None)
+
 
 class SaleDetailSerializer(serializers.ModelSerializer):
     cashier_username = serializers.CharField(source="cashier.username", read_only=True)
     cashier_full_name = serializers.SerializerMethodField()
+    customer_avatar_url = serializers.SerializerMethodField()
     cancelled_by_username = serializers.CharField(
         source="cancelled_by.username", read_only=True, default=None
     )
@@ -183,8 +245,13 @@ class SaleDetailSerializer(serializers.ModelSerializer):
             "idempotency_key",
             "customer",
             "customer_name_snapshot",
+            "customer_avatar_url",
             "status",
             "subtotal",
+            "item_discount_total",
+            "order_discount_type",
+            "order_discount_value",
+            "order_discount_amount",
             "discount_amount",
             "tax_amount",
             "total_amount",
@@ -214,6 +281,10 @@ class SaleDetailSerializer(serializers.ModelSerializer):
         full = (getattr(obj.cashier, "full_name", "") or "").strip()
         return full or obj.cashier.username
 
+    def get_customer_avatar_url(self, obj) -> str | None:
+        customer = getattr(obj, "customer", None)
+        return _build_media_url(self.context.get("request"), customer.avatar if customer else None)
+
 
 class CheckoutItemInputSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
@@ -221,6 +292,18 @@ class CheckoutItemInputSerializer(serializers.Serializer):
         max_digits=14,
         decimal_places=3,
         min_value=Decimal("0.001"),
+    )
+    discount_type = serializers.ChoiceField(
+        choices=Sale.DiscountType.choices,
+        required=False,
+        default=Sale.DiscountType.FIXED,
+    )
+    discount_value = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        default=Decimal("0.00"),
     )
 
 
@@ -256,6 +339,19 @@ class SaleCheckoutSerializer(serializers.Serializer):
         min_value=Decimal("0.00"),
         required=False,
         default=Decimal("0.00"),
+    )
+    discount_type = serializers.ChoiceField(
+        choices=Sale.DiscountType.choices,
+        required=False,
+        default=Sale.DiscountType.FIXED,
+    )
+    discount_value = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        allow_null=True,
+        default=None,
     )
     tax_rate = serializers.DecimalField(
         max_digits=5,

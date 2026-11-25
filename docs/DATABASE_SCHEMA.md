@@ -37,12 +37,9 @@
 - Extensible conversion columns: `base_unit_id` (nullable self-FK with `on_delete=models.PROTECT`), `conversion_factor` (`DECIMAL(14, 6)`, default `1.000000`, DB check `> 0`)
 - `is_active` (indexed), `created_at`, `updated_at`
 
-### `catalog_products` (`apps/catalog/migrations/0003_product.py`)
-- `id` (PK), `sku` (unique, indexed), `barcode` (nullable, unique, indexed), `name` (indexed), `name_km`, `description`, `image` (`ImageField` under `media/products/YYYY/MM/`)
-- `category_id` (FK -> `catalog_categories`, `on_delete=models.PROTECT`), `unit_id` (FK -> `catalog_units`, `on_delete=models.PROTECT`)
-- Monetary columns: `purchase_cost` (`DECIMAL(12,2)` >= 0), `selling_price` (`DECIMAL(12,2)` >= 0), `wholesale_price` (nullable `DECIMAL(12,2)` >= 0), `tax_rate` (`DECIMAL(5,2)` 0–100)
-- Inventory configuration (NO editable stock balance column): `min_stock_threshold` (`DECIMAL(12,3)` >= 0), `track_inventory` (boolean)
-- `is_active` (indexed), `created_at`, `updated_at`
+### `catalog_products` & `catalog_product_images` (`apps/catalog/migrations/0003_product.py`, `0004_productimage.py`)
+- `catalog_products`: `id` (PK), `sku` (unique, indexed), `barcode` (nullable, unique, indexed), `name` (indexed), `name_km`, `description`, `image` (legacy fallback `ImageField` under `media/products/YYYY/MM/`), `category_id` (`PROTECT`), `unit_id` (`PROTECT`), monetary columns (`purchase_cost`, `selling_price`, `wholesale_price`, `tax_rate`), `min_stock_threshold`, `track_inventory`, `is_active`, timestamps
+- `catalog_product_images`: `id` (PK), `product_id` (FK -> `catalog_products`, `CASCADE`), `image` (`ImageField` under `media/products/YYYY/MM/`), `alt_text`, `is_primary` (indexed), `sort_order`, `created_at` (up to 10 images per product)
 
 ### `inventory_stock_balances` & `inventory_stock_movements` (`apps/inventory/migrations/0001_initial.py`)
 - `inventory_stock_balances`: `id` (PK), `product_id` (OneToOne FK -> `catalog_products`, `PROTECT`), `quantity_on_hand` (`DECIMAL(14,3)`), `average_unit_cost` (`DECIMAL(12,2)` weighted moving average), `updated_at`
@@ -55,8 +52,8 @@
 
 ### `customers`, `sales_sales`, `sales_sale_items` & `sales_payments` (`apps/sales/migrations/0001_initial.py`)
 - `customers`: `id` (PK), `name` (indexed), `phone` (indexed), `email`, `address`, `notes`, `is_active`, `created_by`, timestamps
-- `sales_sales`: `id` (PK), `sale_number` (unique, indexed), `idempotency_key` (nullable, unique, indexed), `customer_id` (nullable FK -> `customers`, `PROTECT`), `customer_name_snapshot`, `status` (`completed` | `cancelled` | `refunded`, indexed), `subtotal`, `discount_amount`, `tax_amount`, `total_amount`, `paid_amount`, `change_amount` (all `DECIMAL(14,2)` >= 0), `payment_method` (`cash` | `card` | `qr` | `split`, indexed), `notes`, `cashier_id` (`PROTECT`), `cancelled_by`/`cancelled_at`/`cancel_reason`, `refunded_by`/`refunded_at`/`refund_reason`, timestamps
-- `sales_sale_items`: `id` (PK), `sale_id` (FK `CASCADE`), `product_id` (FK -> `catalog_products`, `PROTECT`), immutable snapshots (`product_sku_snapshot`, `product_name_snapshot`, `unit_abbreviation_snapshot`, `unit_price`, `unit_cost_snapshot`, `tax_rate_snapshot`), `quantity` (`DECIMAL(14,3)` > 0), `line_subtotal`, `line_tax`, `line_total`, unique `(sale_id, product_id)`
+- `sales_sales`: `id` (PK), `sale_number` (unique, indexed), `idempotency_key` (nullable, unique, indexed), `customer_id` (nullable FK -> `customers`, `PROTECT`), `customer_name_snapshot`, `status` (`completed` | `cancelled` | `refunded`, indexed), `subtotal`, `item_discount_total`, `order_discount_type` (`fixed` | `percent`), `order_discount_value`, `order_discount_amount`, `discount_amount` (combined total discount), `tax_amount`, `total_amount`, `paid_amount`, `change_amount` (all `DECIMAL(14,2)` >= 0), `payment_method` (`cash` | `card` | `qr` | `split`, indexed), `notes`, `cashier_id` (`PROTECT`), `cancelled_by`/`cancelled_at`/`cancel_reason`, `refunded_by`/`refunded_at`/`refund_reason`, timestamps
+- `sales_sale_items`: `id` (PK), `sale_id` (FK `CASCADE`), `product_id` (FK -> `catalog_products`, `PROTECT`), immutable snapshots (`product_sku_snapshot`, `product_name_snapshot`, `unit_abbreviation_snapshot`, `unit_price`, `unit_cost_snapshot`, `tax_rate_snapshot`), `quantity` (`DECIMAL(14,3)` > 0), `line_subtotal`, `discount_type` (`fixed` | `percent`), `discount_value`, `line_discount`, `line_tax`, `line_total`, unique `(sale_id, product_id)`
 - `sales_payments`: `id` (PK), `sale_id` (FK `CASCADE`), `payment_method` (`cash` | `card` | `qr`), `amount` (`DECIMAL(14,2)` > 0), `reference_code`, `created_at`
 
 ### `expense_categories` & `expenses` (`apps/expenses/migrations/0001_initial.py`)
@@ -91,3 +88,5 @@
 | 2026-11-23 | Implemented `expense_categories` and `expenses` tables with `PROTECT` category guard and `Decimal` cash-flow tracking | Expenses & Cash Flow Module |
 | 2026-11-23 | Implemented singleton `store_settings` table for store identity, USD/KHR exchange rate, default tax, and receipt formatting | Store Settings & Audit Module |
 | 2026-11-24 | Added `accounts_users.avatar` (`0002_user_avatar`) and `backup_settings` + `backup_runs` (`0002_backuprun_backupsetting`) for profile images and crontab Telegram backups | Profile Image & Backup Control |
+| 2026-11-24 | Added per-item and all-items cash/percentage discount fields to `sales_sales` and `sales_sale_items` (`sales/0002_sale_item_discount_total...`) | POS Checkout Discounts |
+| 2026-11-24 | Added `catalog_product_images` (`catalog/0004_productimage`) supporting up to 10 images per product with primary cover selection | Multi-Image Product Gallery |

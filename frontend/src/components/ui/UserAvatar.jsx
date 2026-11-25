@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const SIZE_MAP = {
   sm: 24,
@@ -19,6 +19,11 @@ export default function UserAvatar({ user, src, size = "md", className = "" }) {
   const [imgError, setImgError] = useState(false);
   const px = SIZE_MAP[size] || SIZE_MAP.md;
   const resolvedSrc = src !== undefined ? src : user?.avatar_url || user?.avatar || "";
+
+  useEffect(() => {
+    setImgError(false);
+  }, [resolvedSrc]);
+
   const showImage = Boolean(resolvedSrc) && !imgError;
 
   if (showImage) {

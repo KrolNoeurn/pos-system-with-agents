@@ -1,8 +1,13 @@
 """Automated tests for Purchasing, Goods Receiving, Inventory integration, validation, and RBAC."""
 
 from decimal import Decimal
+import io
+import tempfile
 
+from PIL import Image
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -326,3 +331,76 @@ class PurchasingAPITestCase(APITestCase):
         rcv = self.client.post(reverse("purchase-receive", kwargs={"pk": po_id}), {}, format="json")
         self.assertEqual(rcv.status_code, status.HTTP_200_OK)
         self.assertEqual(rcv.data["status"], "received")
+
+    def _make_test_image(self, name: str = "supplier.png") -> SimpleUploadedFile:
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 64), color=(115, 103, 240)).save(buf, format="PNG")
+        return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+    def test_supplier_profile_avatar_upload_replace_remove_and_default_null(self) -> None:
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                self._auth(self.manager)
+
+                # 1. Supplier created without avatar returns null avatar_url (frontend uses default avatar)
+                no_img_resp = self.client.post(
+                    self.suppliers_url,
+                    {"name": "Default Avatar Supply", "contact_name": "Sok", "phone": "010222333"},
+                    format="json",
+                )
+                self.assertEqual(no_img_resp.status_code, status.HTTP_201_CREATED)
+                self.assertIsNone(no_img_resp.data["avatar_url"])
+                sup_id = no_img_resp.data["id"]
+
+                # 2. Upload avatar via multipart PATCH
+                patch_resp = self.client.patch(
+                    reverse("supplier-detail", kwargs={"pk": sup_id}),
+                    {"avatar": self._make_test_image("logo1.png")},
+                    format="multipart",
+                )
+                self.assertEqual(patch_resp.status_code, status.HTTP_200_OK)
+                self.assertIsNotNone(patch_resp.data["avatar_url"])
+                self.assertIn("suppliers/avatars/", patch_resp.data["avatar_url"])
+
+                # 3. Purchase response includes supplier_avatar_url
+                po_resp = self.client.post(
+                    self.purchases_url,
+                    {
+                        "supplier": sup_id,
+                        "items": [{"product": self.coffee.id, "quantity": "2", "unit_cost": "4.00"}],
+                    },
+                    format="json",
+                )
+                self.assertEqual(po_resp.status_code, status.HTTP_201_CREATED)
+                self.assertEqual(po_resp.data["supplier_avatar_url"], patch_resp.data["avatar_url"])
+
+                # 4. Remove avatar returns supplier to default avatar (avatar_url=None)
+                rm_resp = self.client.patch(
+                    reverse("supplier-detail", kwargs={"pk": sup_id}),
+                    {"remove_avatar": True},
+                    format="json",
+                )
+                self.assertEqual(rm_resp.status_code, status.HTTP_200_OK)
+                self.assertIsNone(rm_resp.data["avatar_url"])
+
+                # 5. Create supplier directly with avatar via multipart POST
+                created_with_avatar = self.client.post(
+                    self.suppliers_url,
+                    {
+                        "name": "Photo Supplier Co",
+                        "contact_name": "Nita",
+                        "avatar": self._make_test_image("logo2.png"),
+                    },
+                    format="multipart",
+                )
+                self.assertEqual(created_with_avatar.status_code, status.HTTP_201_CREATED)
+                self.assertIsNotNone(created_with_avatar.data["avatar_url"])
+
+                # 6. Invalid non-image file is rejected
+                bad_file = SimpleUploadedFile("bad.txt", b"not-an-image", content_type="text/plain")
+                bad_resp = self.client.patch(
+                    reverse("supplier-detail", kwargs={"pk": sup_id}),
+                    {"avatar": bad_file},
+                    format="multipart",
+                )
+                self.assertEqual(bad_resp.status_code, status.HTTP_400_BAD_REQUEST)

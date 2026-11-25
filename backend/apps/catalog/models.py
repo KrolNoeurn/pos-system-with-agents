@@ -172,3 +172,25 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return f"{self.sku} — {self.name}"
+
+
+class ProductImage(models.Model):
+    """Gallery image belonging to a catalog product (supports multiple photos per product)."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    image = models.ImageField(upload_to="products/%Y/%m/")
+    alt_text = models.CharField(max_length=180, blank=True, default="")
+    is_primary = models.BooleanField(default=False, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "catalog_product_images"
+        ordering = ["-is_primary", "sort_order", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.product.sku} image #{self.id}"

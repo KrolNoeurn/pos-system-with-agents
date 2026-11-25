@@ -10,6 +10,8 @@ import {
   FormTextarea,
   PageHeader,
   Pagination,
+  SupplierAvatar,
+  SupplierAvatarField,
 } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 import { useConfirm } from "../contexts/ConfirmContext";
@@ -49,6 +51,8 @@ const EMPTY_SUPPLIER_FORM = {
   email: "",
   address: "",
   is_active: true,
+  avatar: null,
+  remove_avatar: false,
 };
 
 function formatMoney(value) {
@@ -389,6 +393,8 @@ export default function PurchasingPage() {
             email: sup.email || "",
             address: sup.address || "",
             is_active: Boolean(sup.is_active),
+            avatar: null,
+            remove_avatar: false,
           }
         : EMPTY_SUPPLIER_FORM
     );
@@ -400,10 +406,23 @@ export default function PurchasingPage() {
     if (!supplierForm.name.trim()) return;
     setSavingSupplier(true);
     try {
+      const payload = {
+        name: supplierForm.name.trim(),
+        contact_name: supplierForm.contact_name.trim(),
+        phone: supplierForm.phone.trim(),
+        email: supplierForm.email.trim(),
+        address: supplierForm.address.trim(),
+        is_active: supplierForm.is_active,
+      };
+      if (supplierForm.avatar instanceof File) {
+        payload.avatar = supplierForm.avatar;
+      } else if (editingSupplier && supplierForm.remove_avatar) {
+        payload.remove_avatar = true;
+      }
       if (editingSupplier) {
-        await updateSupplier(editingSupplier.id, supplierForm);
+        await updateSupplier(editingSupplier.id, payload);
       } else {
-        await createSupplier(supplierForm);
+        await createSupplier(payload);
       }
       toast.success(t("purchasing.supplierSavedToast"));
       setSupplierModalOpen(false);
@@ -430,6 +449,16 @@ export default function PurchasingPage() {
       {
         key: "supplier_name",
         header: t("purchasing.colSupplier"),
+        render: (row) => (
+          <div className="d-flex align-items-center gap-2">
+            <SupplierAvatar
+              name={row.supplier_name}
+              src={row.supplier_avatar_url || ""}
+              size="sm"
+            />
+            <span>{row.supplier_name}</span>
+          </div>
+        ),
       },
       {
         key: "purchase_date",
@@ -669,11 +698,14 @@ export default function PurchasingPage() {
                 key: "name",
                 header: t("purchasing.supplierNameLabel"),
                 render: (s) => (
-                  <div>
-                    <div className="fw-semibold">{s.name}</div>
-                    {s.contact_name && (
-                      <div className="small text-body-secondary">{s.contact_name}</div>
-                    )}
+                  <div className="d-flex align-items-center gap-2">
+                    <SupplierAvatar supplier={s} size="md" />
+                    <div>
+                      <div className="fw-semibold">{s.name}</div>
+                      {s.contact_name && (
+                        <div className="small text-body-secondary">{s.contact_name}</div>
+                      )}
+                    </div>
                   </div>
                 ),
               },
@@ -768,7 +800,14 @@ export default function PurchasingPage() {
               </div>
               <div className="col-6 col-md-3">
                 <div className="text-body-secondary">{t("purchasing.colSupplier")}</div>
-                <div className="fw-semibold">{detailPurchase.supplier_name}</div>
+                <div className="d-flex align-items-center gap-2 mt-1">
+                  <SupplierAvatar
+                    name={detailPurchase.supplier_name}
+                    src={detailPurchase.supplier_avatar_url || ""}
+                    size="sm"
+                  />
+                  <span className="fw-semibold">{detailPurchase.supplier_name}</span>
+                </div>
               </div>
               <div className="col-6 col-md-3">
                 <div className="text-body-secondary">{t("purchasing.colDate")}</div>
@@ -1034,6 +1073,22 @@ export default function PurchasingPage() {
         disableClose={savingSupplier}
       >
         <form onSubmit={handleSaveSupplier} className="d-flex flex-column gap-3">
+          <SupplierAvatarField
+            inputId="poSupAvatar"
+            supplier={editingSupplier}
+            name={supplierForm.name}
+            file={supplierForm.avatar}
+            removeAvatar={supplierForm.remove_avatar}
+            disabled={savingSupplier}
+            onFileSelect={(picked) =>
+              setSupplierForm((prev) => ({ ...prev, avatar: picked, remove_avatar: false }))
+            }
+            onRemove={() =>
+              setSupplierForm((prev) => ({ ...prev, avatar: null, remove_avatar: true }))
+            }
+            onValidationError={(msg) => toast.error(msg)}
+            t={t}
+          />
           <FormInput
             id="supName"
             label={t("purchasing.supplierNameLabel")}

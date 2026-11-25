@@ -274,4 +274,102 @@ describe("POS Checkout & Sales History", () => {
     expect(screen.queryByRole("button", { name: "សងប្រាក់វិញ" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /បើកបញ្ជរលក់ POS/ })).not.toBeInTheDocument();
   });
+
+  it("applies per-item percentage discount and all-items percentage discount on POSCheckoutPage", async () => {
+    salesService.fetchPOSCatalog.mockResolvedValue({
+      count: 2,
+      results: [
+        {
+          id: 10,
+          sku: "COF-01",
+          name: "Iced Coffee",
+          category: 1,
+          unit_abbreviation: "pcs",
+          unit_allow_decimal: false,
+          selling_price: "10.00",
+          tax_rate: "0.00",
+          track_inventory: true,
+          stock_quantity: "20.000",
+        },
+        {
+          id: 11,
+          sku: "CAK-01",
+          name: "Butter Cake",
+          category: 1,
+          unit_abbreviation: "pcs",
+          unit_allow_decimal: false,
+          selling_price: "20.00",
+          tax_rate: "0.00",
+          track_inventory: true,
+          stock_quantity: "20.000",
+        },
+      ],
+    });
+    salesService.checkoutSale.mockResolvedValue({
+      id: 205,
+      sale_number: "INV-20261124-0005",
+      customer_name_snapshot: "Walk-in Customer",
+      status: "completed",
+      subtotal: "30.00",
+      item_discount_total: "6.00",
+      order_discount_type: "percent",
+      order_discount_value: "10.00",
+      order_discount_amount: "2.40",
+      discount_amount: "8.40",
+      tax_amount: "0.00",
+      total_amount: "21.60",
+      paid_amount: "21.60",
+      change_amount: "0.00",
+      payment_method: "cash",
+      cashier_username: "cashier1",
+      created_at: "2026-11-24T15:00:00Z",
+      items: [],
+      payments: [],
+    });
+
+    renderWithProviders(<POSCheckoutPage />);
+
+    await waitFor(() => expect(screen.getByText("Iced Coffee")).toBeInTheDocument());
+
+    // Add both products ($10 + $20 = $30 subtotal)
+    fireEvent.click(screen.getByRole("button", { name: /Iced Coffee/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Butter Cake/i }));
+
+    // Item 1 (Iced Coffee): 20% discount -> -$2.00 ($8.00 net)
+    fireEvent.click(screen.getByRole("button", { name: "Percent discount for Iced Coffee" }));
+    fireEvent.change(screen.getByLabelText("Discount for Iced Coffee"), {
+      target: { value: "20" },
+    });
+
+    // Item 2 (Butter Cake): $4.00 cash discount -> -$4.00 ($16.00 net)
+    fireEvent.change(screen.getByLabelText("Discount for Butter Cake"), {
+      target: { value: "4" },
+    });
+
+    // All-Items discount: switch to Percent (%) and tap 10% -> 10% of $24.00 = $2.40 -> Grand total = $21.60
+    fireEvent.click(screen.getByRole("button", { name: "Percent (%)" }));
+    fireEvent.click(screen.getByRole("button", { name: "10%" }));
+
+    expect(screen.getByRole("button", { name: /Charge & Pay \(\$21\.60\)/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Charge & Pay/i }));
+    const dialog = within(screen.getByRole("dialog"));
+    fireEvent.click(dialog.getByRole("button", { name: /Complete Sale/i }));
+
+    await waitFor(() => {
+      expect(salesService.checkoutSale).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [
+            { product: 10, quantity: "1", discount_type: "percent", discount_value: "20.00" },
+            { product: 11, quantity: "1", discount_type: "fixed", discount_value: "4.00" },
+          ],
+          discount_type: "percent",
+          discount_value: "10.00",
+          discount_amount: "2.40",
+          paid_amount: "21.60",
+        }),
+        expect.stringMatching(/^pos-/)
+      );
+    });
+  });
 });

@@ -115,54 +115,87 @@ export default function HomePage() {
           <LoadingState compact message={t("status.loading")} />
         ) : dashboard ? (
           <>
-            <div className="row g-3">
-              <div className="col-6 col-xl-3">
-                <div className="card pos-surface p-3 h-100">
-                  <div className="small text-body-secondary">{t("dashboard.todaySales")}</div>
-                  <div className="fs-3 fw-bold text-primary pos-tabular">
-                    {formatMoney(dashboard.kpis.today_sales_total)}
-                  </div>
-                  <div className="small text-body-secondary pos-tabular">
-                    {dashboard.kpis.today_sales_count} orders · avg{" "}
-                    {formatMoney(dashboard.kpis.today_avg_ticket)}
-                  </div>
-                </div>
-              </div>
-              <div className="col-6 col-xl-3">
-                <div className="card pos-surface p-3 h-100">
-                  <div className="small text-body-secondary">{t("dashboard.mtdSales")}</div>
-                  <div className="fs-3 fw-bold text-success pos-tabular">
-                    {formatMoney(dashboard.kpis.mtd_sales_total)}
-                  </div>
-                  <div className="small text-body-secondary pos-tabular">
-                    {dashboard.kpis.mtd_sales_count} orders
+            <div className="row g-3 g-md-4">
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card pos-surface vuexy-kpi-card p-3 p-md-4 h-100">
+                  <div className="d-flex justify-content-between align-items-start gap-2">
+                    <div className="min-w-0">
+                      <div className="small text-body-secondary mb-1">{t("dashboard.todaySales")}</div>
+                      <div className="fs-3 fw-bold text-primary pos-tabular">
+                        {formatMoney(dashboard.kpis.today_sales_total)}
+                      </div>
+                      <div className="small text-body-secondary pos-tabular mt-1">
+                        {dashboard.kpis.today_sales_count} orders · avg{" "}
+                        {formatMoney(dashboard.kpis.today_avg_ticket)}
+                      </div>
+                    </div>
+                    <span className="vuexy-kpi-icon is-primary" aria-hidden="true">
+                      <i className="bi bi-cash-coin" />
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className="col-6 col-xl-3">
-                <div className="card pos-surface p-3 h-100">
-                  <div className="small text-body-secondary">{t("dashboard.mtdExpenses")}</div>
-                  <div className="fs-3 fw-bold text-danger pos-tabular">
-                    {formatMoney(dashboard.kpis.mtd_expenses_total)}
-                  </div>
-                  <div className="small text-body-secondary pos-tabular">
-                    {t("dashboard.pendingPurchases")}: {dashboard.kpis.pending_purchases_count}
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card pos-surface vuexy-kpi-card p-3 p-md-4 h-100">
+                  <div className="d-flex justify-content-between align-items-start gap-2">
+                    <div className="min-w-0">
+                      <div className="small text-body-secondary mb-1">{t("dashboard.mtdSales")}</div>
+                      <div className="fs-3 fw-bold text-success pos-tabular">
+                        {formatMoney(dashboard.kpis.mtd_sales_total)}
+                      </div>
+                      <div className="small text-body-secondary pos-tabular mt-1">
+                        {dashboard.kpis.mtd_sales_count} orders
+                      </div>
+                    </div>
+                    <span className="vuexy-kpi-icon is-success" aria-hidden="true">
+                      <i className="bi bi-graph-up-arrow" />
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className="col-6 col-xl-3">
-                <div className="card pos-surface p-3 h-100">
-                  <div className="small text-body-secondary">{t("dashboard.lowStockAlerts")}</div>
-                  <div
-                    className={`fs-3 fw-bold pos-tabular ${
-                      dashboard.kpis.low_stock_count > 0 ? "text-warning" : "text-success"
-                    }`}
-                  >
-                    {dashboard.kpis.low_stock_count}
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card pos-surface vuexy-kpi-card p-3 p-md-4 h-100">
+                  <div className="d-flex justify-content-between align-items-start gap-2">
+                    <div className="min-w-0">
+                      <div className="small text-body-secondary mb-1">{t("dashboard.mtdExpenses")}</div>
+                      <div className="fs-3 fw-bold text-danger pos-tabular">
+                        {formatMoney(dashboard.kpis.mtd_expenses_total)}
+                      </div>
+                      <div className="small text-body-secondary pos-tabular mt-1">
+                        {t("dashboard.pendingPurchases")}: {dashboard.kpis.pending_purchases_count}
+                      </div>
+                    </div>
+                    <span className="vuexy-kpi-icon is-danger" aria-hidden="true">
+                      <i className="bi bi-wallet2" />
+                    </span>
                   </div>
-                  <div className="small text-body-secondary pos-tabular">
-                    {dashboard.kpis.out_of_stock_count} out of stock /{" "}
-                    {dashboard.kpis.tracked_products_count} tracked
+                </div>
+              </div>
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card pos-surface vuexy-kpi-card p-3 p-md-4 h-100">
+                  <div className="d-flex justify-content-between align-items-start gap-2">
+                    <div className="min-w-0">
+                      <div className="small text-body-secondary mb-1">{t("dashboard.lowStockAlerts")}</div>
+                      <div
+                        className={`fs-3 fw-bold pos-tabular ${
+                          dashboard.kpis.low_stock_count > 0 ? "text-warning" : "text-success"
+                        }`}
+                      >
+                        {dashboard.kpis.low_stock_count}
+                      </div>
+                      <div className="small text-body-secondary pos-tabular mt-1">
+                        {dashboard.kpis.out_of_stock_count} out of stock /{" "}
+                        {dashboard.kpis.tracked_products_count} tracked
+                      </div>
+                    </div>
+                    <span
+                      className={`vuexy-kpi-icon ${
+                        dashboard.kpis.low_stock_count > 0 ? "is-warning" : "is-success"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      <i className="bi bi-box-seam" />
+                    </span>
                   </div>
                 </div>
               </div>

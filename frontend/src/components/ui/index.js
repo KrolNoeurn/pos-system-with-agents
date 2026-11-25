@@ -1,5 +1,7 @@
 export { default as AppCard } from "./AppCard";
 export { default as AppModal } from "./AppModal";
+export { default as CustomerAvatar } from "./CustomerAvatar";
+export { default as CustomerAvatarField } from "./CustomerAvatarField";
 export { default as DataTable } from "./DataTable";
 export { default as EmptyState } from "./EmptyState";
 export { default as ErrorState } from "./ErrorState";
@@ -7,4 +9,6 @@ export { FormActions, FormInput, FormSelect, FormTextarea } from "./FormControls
 export { default as LoadingState } from "./LoadingState";
 export { default as PageHeader } from "./PageHeader";
 export { default as Pagination } from "./Pagination";
+export { default as SupplierAvatar } from "./SupplierAvatar";
+export { default as SupplierAvatarField } from "./SupplierAvatarField";
 export { default as UserAvatar } from "./UserAvatar";

@@ -172,6 +172,54 @@ describe("Customer Control, Supplier Control, and Bulk Stock Import/Adjust", () 
     });
   });
 
+  it("renders default customer avatar, opens Customer Profile modal, and supports avatar upload/reset", async () => {
+    salesService.createCustomer.mockResolvedValue({
+      id: 11,
+      name: "Dara Visal",
+      avatar_url: "http://localhost:8000/media/customers/avatars/dara.png",
+      is_active: true,
+    });
+
+    renderWithProviders(<CustomersPage />);
+
+    // Default avatar initials ("SC") rendered when customer has no avatar_url
+    await waitFor(() => expect(screen.getByText("Sokha Chan")).toBeInTheDocument());
+    expect(screen.getByRole("img", { name: "Sokha Chan avatar" })).toHaveTextContent("SC");
+
+    // Open Customer Profile modal
+    fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+    const profileDialog = within(screen.getByRole("dialog"));
+    expect(profileDialog.getByText("Customer Profile")).toBeInTheDocument();
+    expect(profileDialog.getByText("012111222")).toBeInTheDocument();
+    expect(profileDialog.getByRole("img", { name: "Sokha Chan avatar" })).toBeInTheDocument();
+    fireEvent.click(profileDialog.getByRole("button", { name: "Close" }));
+
+    // Open Create Customer modal -> shows Default Avatar badge and uploads image
+    fireEvent.click(screen.getByRole("button", { name: /New Customer/i }));
+    const createDialog = within(screen.getByRole("dialog"));
+    expect(createDialog.getByText("Default Avatar")).toBeInTheDocument();
+
+    fireEvent.change(createDialog.getByLabelText(/Customer Name/i), {
+      target: { value: "Dara Visal" },
+    });
+    const fakeFile = new File(["pngbytes"], "dara.png", { type: "image/png" });
+    fireEvent.change(createDialog.getByLabelText("Upload Photo"), {
+      target: { files: [fakeFile] },
+    });
+
+    expect(createDialog.getByRole("button", { name: /Use Default Avatar/i })).toBeInTheDocument();
+
+    fireEvent.click(createDialog.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(salesService.createCustomer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Dara Visal",
+          avatar: fakeFile,
+        })
+      );
+    });
+  });
+
   it("supports Supplier deactivate control and CSV import on SuppliersPage", async () => {
     purchasingService.deactivateSupplier.mockResolvedValue({ id: 2, is_active: false });
     purchasingService.importSuppliersCsv.mockResolvedValue({ created_count: 1, updated_count: 0 });
@@ -193,6 +241,55 @@ describe("Customer Control, Supplier Control, and Bulk Stock Import/Adjust", () 
     await waitFor(() => {
       expect(purchasingService.importSuppliersCsv).toHaveBeenCalledWith(
         "name,phone\nAngkor Supply,023111222\n"
+      );
+    });
+  });
+
+  it("renders default supplier avatar, opens Supplier Profile modal, and supports avatar upload/reset", async () => {
+    purchasingService.createSupplier.mockResolvedValue({
+      id: 9,
+      name: "Bayon Traders",
+      avatar_url: "http://localhost:8000/media/suppliers/avatars/bayon.png",
+      is_active: true,
+    });
+
+    renderWithProviders(<SuppliersPage />);
+
+    // Default avatar initials ("MW") rendered when supplier has no avatar_url
+    await waitFor(() => expect(screen.getByText("Mekong Wholesale")).toBeInTheDocument());
+    expect(screen.getByRole("img", { name: "Mekong Wholesale avatar" })).toHaveTextContent("MW");
+
+    // Open Supplier Profile modal
+    fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+    const profileDialog = within(screen.getByRole("dialog"));
+    expect(profileDialog.getByText("Supplier Profile")).toBeInTheDocument();
+    expect(profileDialog.getByText("023555666")).toBeInTheDocument();
+    expect(profileDialog.getByRole("img", { name: "Mekong Wholesale avatar" })).toBeInTheDocument();
+    fireEvent.click(profileDialog.getByRole("button", { name: "Close" }));
+
+    // Open Create Supplier modal -> shows Default Avatar badge and uploads image
+    fireEvent.click(screen.getByRole("button", { name: /New Supplier/i }));
+    const createDialog = within(screen.getByRole("dialog"));
+    expect(createDialog.getByText("Default Avatar")).toBeInTheDocument();
+
+    fireEvent.change(createDialog.getByLabelText(/Supplier Name/i), {
+      target: { value: "Bayon Traders" },
+    });
+    const fakeFile = new File(["pngbytes"], "bayon.png", { type: "image/png" });
+    fireEvent.change(createDialog.getByLabelText("Upload Photo"), {
+      target: { files: [fakeFile] },
+    });
+
+    // Reset button appears once a custom file is chosen
+    expect(createDialog.getByRole("button", { name: /Use Default Avatar/i })).toBeInTheDocument();
+
+    fireEvent.click(createDialog.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(purchasingService.createSupplier).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Bayon Traders",
+          avatar: fakeFile,
+        })
       );
     });
   });

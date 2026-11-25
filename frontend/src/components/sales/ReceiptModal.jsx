@@ -200,6 +200,14 @@ export default function ReceiptModal({ isOpen, sale, onClose, onNewSale }) {
                     <div className="fw-medium">{item.product_name_snapshot}</div>
                     <div className="small text-body-secondary">
                       <code>{item.product_sku_snapshot}</code> · {item.unit_abbreviation_snapshot}
+                      {Number(item.line_discount) > 0 ? (
+                        <span className="text-danger ms-1">
+                          · -{formatMoney(item.line_discount, symbol)}
+                          {item.discount_type === "percent" && Number(item.discount_value) > 0
+                            ? ` (${Number(item.discount_value)}%)`
+                            : ""}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   <td className="text-end pos-tabular">
@@ -250,8 +258,36 @@ export default function ReceiptModal({ isOpen, sale, onClose, onNewSale }) {
               <span className="text-body-secondary">{t("sales.subtotalLabel")}</span>
               <span className="pos-tabular">{formatMoney(sale.subtotal, symbol)}</span>
             </div>
+            {Number(sale.item_discount_total) > 0 ? (
+              <div className="d-flex justify-content-between small py-1">
+                <span className="text-body-secondary">{t("sales.itemDiscountsSummary")}</span>
+                <span className="pos-tabular text-danger">
+                  -{formatMoney(sale.item_discount_total, symbol)}
+                </span>
+              </div>
+            ) : null}
+            {Number(sale.item_discount_total) > 0 && Number(sale.order_discount_amount) > 0 ? (
+              <div className="d-flex justify-content-between small py-1">
+                <span className="text-body-secondary">
+                  {t("sales.orderDiscountLabel")}
+                  {sale.order_discount_type === "percent" && Number(sale.order_discount_value) > 0
+                    ? ` (${Number(sale.order_discount_value)}%)`
+                    : ""}
+                </span>
+                <span className="pos-tabular text-danger">
+                  -{formatMoney(sale.order_discount_amount, symbol)}
+                </span>
+              </div>
+            ) : null}
             <div className="d-flex justify-content-between small py-1">
-              <span className="text-body-secondary">{t("sales.discountLabel")}</span>
+              <span className="text-body-secondary">
+                {t("sales.discountLabel")}
+                {!Number(sale.item_discount_total) &&
+                sale.order_discount_type === "percent" &&
+                Number(sale.order_discount_value) > 0
+                  ? ` (${Number(sale.order_discount_value)}%)`
+                  : ""}
+              </span>
               <span className="pos-tabular text-danger">
                 -{formatMoney(sale.discount_amount, symbol)}
               </span>

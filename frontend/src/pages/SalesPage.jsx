@@ -5,6 +5,8 @@ import ReceiptModal from "../components/sales/ReceiptModal";
 import {
   AppCard,
   AppModal,
+  CustomerAvatar,
+  CustomerAvatarField,
   DataTable,
   EmptyState,
   ErrorState,
@@ -53,6 +55,8 @@ const EMPTY_CUSTOMER_FORM = {
   address: "",
   notes: "",
   is_active: true,
+  avatar: null,
+  remove_avatar: false,
 };
 
 export default function SalesPage() {
@@ -226,6 +230,8 @@ export default function SalesPage() {
       address: cust.address || "",
       notes: cust.notes || "",
       is_active: Boolean(cust.is_active),
+      avatar: null,
+      remove_avatar: false,
     });
     setCustomerFormError("");
     setCustomerModalOpen(true);
@@ -248,6 +254,11 @@ export default function SalesPage() {
         notes: customerForm.notes.trim(),
         is_active: customerForm.is_active,
       };
+      if (customerForm.avatar instanceof File) {
+        payload.avatar = customerForm.avatar;
+      } else if (editingCustomer && customerForm.remove_avatar) {
+        payload.remove_avatar = true;
+      }
       if (editingCustomer) {
         await updateCustomer(editingCustomer.id, payload);
       } else {
@@ -294,7 +305,19 @@ export default function SalesPage() {
     {
       key: "customer_name_snapshot",
       header: t("sales.colCustomer"),
-      render: (row) => row.customer_name_snapshot || t("sales.walkInCustomer"),
+      render: (row) => {
+        const displayName = row.customer_name_snapshot || t("sales.walkInCustomer");
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <CustomerAvatar
+              name={row.customer ? displayName : ""}
+              src={row.customer_avatar_url || ""}
+              size="sm"
+            />
+            <span>{displayName}</span>
+          </div>
+        );
+      },
     },
     {
       key: "created_at",
@@ -361,7 +384,16 @@ export default function SalesPage() {
   ];
 
   const customerColumns = [
-    { key: "name", header: t("sales.customerNameLabel"), cellClassName: "fw-semibold" },
+    {
+      key: "name",
+      header: t("sales.customerNameLabel"),
+      render: (row) => (
+        <div className="d-flex align-items-center gap-2">
+          <CustomerAvatar customer={row} size="md" />
+          <span className="fw-semibold">{row.name}</span>
+        </div>
+      ),
+    },
     { key: "phone", header: t("sales.phoneLabel"), render: (row) => row.phone || "—" },
     { key: "email", header: t("sales.emailLabel"), render: (row) => row.email || "—" },
     { key: "sales_count", header: t("sales.tabSales"), cellClassName: "pos-tabular" },
@@ -650,6 +682,24 @@ export default function SalesPage() {
               className="py-2 small mb-3"
             />
           ) : null}
+          <div className="mb-3">
+            <CustomerAvatarField
+              inputId="sales-customer-avatar"
+              customer={editingCustomer}
+              name={customerForm.name}
+              file={customerForm.avatar}
+              removeAvatar={customerForm.remove_avatar}
+              disabled={savingCustomer}
+              onFileSelect={(picked) =>
+                setCustomerForm((p) => ({ ...p, avatar: picked, remove_avatar: false }))
+              }
+              onRemove={() =>
+                setCustomerForm((p) => ({ ...p, avatar: null, remove_avatar: true }))
+              }
+              onValidationError={(msg) => setCustomerFormError(msg)}
+              t={t}
+            />
+          </div>
           <FormInput
             id="customer-name"
             className="mb-3"

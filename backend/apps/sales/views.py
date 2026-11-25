@@ -4,6 +4,7 @@ from django.db.models import Count, Q
 from django.utils.dateparse import parse_date
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -41,6 +42,7 @@ class CustomerViewSet(
     """Customer directory endpoints (no hard delete to preserve historical sales)."""
 
     serializer_class = CustomerSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsActiveAuthenticated, HasRBACPermission]
     permission_map = {
         "GET": ("customers.view", "sales.view", "sales.create"),
@@ -78,7 +80,10 @@ class CustomerViewSet(
             **serializer.validated_data,
         )
         refreshed = self.get_queryset().get(pk=customer.pk)
-        return Response(CustomerSerializer(refreshed).data, status=status.HTTP_201_CREATED)
+        return Response(
+            CustomerSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         instance = self.get_object()
@@ -91,7 +96,10 @@ class CustomerViewSet(
             **serializer.validated_data,
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(CustomerSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            CustomerSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -108,7 +116,10 @@ class CustomerViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(CustomerSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            CustomerSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -125,7 +136,10 @@ class CustomerViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(CustomerSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            CustomerSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=False,
@@ -235,7 +249,7 @@ class SaleViewSet(
             **data,
         )
         refreshed = self.get_queryset().get(pk=sale.pk)
-        payload = SaleDetailSerializer(refreshed).data
+        payload = SaleDetailSerializer(refreshed, context={"request": request}).data
         return Response(
             payload,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
@@ -257,6 +271,7 @@ class SaleViewSet(
         """
         queryset = (
             Product.objects.select_related("category", "unit", "stock_balance")
+            .prefetch_related("images")
             .filter(is_active=True, category__is_active=True)
             .order_by("name", "id")
         )
@@ -304,7 +319,10 @@ class SaleViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(SaleDetailSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            SaleDetailSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -323,4 +341,7 @@ class SaleViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(SaleDetailSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            SaleDetailSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )

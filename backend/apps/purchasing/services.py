@@ -121,6 +121,22 @@ def _prepare_purchase_lines(items_data: list[dict[str, Any]]) -> tuple[list[dict
 # Supplier Services
 # ---------------------------------------------------------------------------
 
+_UNSET = object()
+
+
+def _schedule_avatar_cleanup(old_storage, old_name: str) -> None:
+    if not old_name or old_storage is None:
+        return
+
+    def _delete():
+        try:
+            old_storage.delete(old_name)
+        except Exception:
+            pass
+
+    transaction.on_commit(_delete)
+
+
 @transaction.atomic
 def create_supplier(
     *,
@@ -130,6 +146,7 @@ def create_supplier(
     phone: str = "",
     email: str = "",
     address: str = "",
+    avatar=None,
     is_active: bool = True,
     ip_address: str | None = None,
 ) -> Supplier:
@@ -145,6 +162,7 @@ def create_supplier(
         phone=(phone or "").strip(),
         email=(email or "").strip().lower(),
         address=(address or "").strip(),
+        avatar=avatar,
         is_active=is_active,
     )
     log_audit_event(
@@ -153,7 +171,7 @@ def create_supplier(
         target_type="Supplier",
         target_id=supplier.id,
         ip_address=ip_address,
-        metadata={"name": supplier.name},
+        metadata={"name": supplier.name, "has_avatar": bool(supplier.avatar)},
     )
     return supplier
 
@@ -168,6 +186,8 @@ def update_supplier(
     phone: str | None = None,
     email: str | None = None,
     address: str | None = None,
+    avatar=_UNSET,
+    remove_avatar: bool = False,
     is_active: bool | None = None,
     ip_address: str | None = None,
 ) -> Supplier:
@@ -192,6 +212,26 @@ def update_supplier(
         if val is not None and getattr(supplier, field_name) != val:
             setattr(supplier, field_name, val)
             updated_fields.append(field_name)
+
+    old_avatar_name = supplier.avatar.name if supplier.avatar else ""
+    old_avatar_storage = supplier.avatar.storage if supplier.avatar else None
+
+    if remove_avatar and not (avatar is not _UNSET and avatar is not None):
+        if supplier.avatar:
+            supplier.avatar = None
+            updated_fields.append("avatar")
+            _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+    elif avatar is not _UNSET:
+        if avatar is None:
+            if supplier.avatar:
+                supplier.avatar = None
+                updated_fields.append("avatar")
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
+        else:
+            supplier.avatar = avatar
+            updated_fields.append("avatar")
+            if old_avatar_name:
+                _schedule_avatar_cleanup(old_avatar_storage, old_avatar_name)
 
     if updated_fields:
         supplier.save(update_fields=[*updated_fields, "updated_at"])

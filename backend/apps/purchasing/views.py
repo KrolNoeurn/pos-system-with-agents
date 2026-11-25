@@ -3,6 +3,7 @@
 from django.db.models import Count, Q
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -41,6 +42,7 @@ class SupplierViewSet(
     """Supplier directory endpoints (no hard delete to preserve historical purchases)."""
 
     serializer_class = SupplierSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsActiveAuthenticated, HasRBACPermission]
     permission_map = {
         "GET": ("suppliers.view", "purchases.view", "purchases.create"),
@@ -79,7 +81,10 @@ class SupplierViewSet(
             **serializer.validated_data,
         )
         refreshed = self.get_queryset().get(pk=supplier.pk)
-        return Response(SupplierSerializer(refreshed).data, status=status.HTTP_201_CREATED)
+        return Response(
+            SupplierSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         instance = self.get_object()
@@ -92,7 +97,10 @@ class SupplierViewSet(
             **serializer.validated_data,
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(SupplierSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            SupplierSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -109,7 +117,10 @@ class SupplierViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(SupplierSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            SupplierSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -126,7 +137,10 @@ class SupplierViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(SupplierSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            SupplierSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=False,
@@ -216,7 +230,10 @@ class PurchaseViewSet(
             **data,
         )
         refreshed = self.get_queryset().get(pk=purchase.pk)
-        return Response(PurchaseDetailSerializer(refreshed).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PurchaseDetailSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         instance = self.get_object()
@@ -236,7 +253,10 @@ class PurchaseViewSet(
             **data,
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(PurchaseDetailSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            PurchaseDetailSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -255,7 +275,10 @@ class PurchaseViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(PurchaseDetailSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            PurchaseDetailSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,
@@ -274,4 +297,7 @@ class PurchaseViewSet(
             ip_address=get_client_ip(request),
         )
         refreshed = self.get_queryset().get(pk=instance.pk)
-        return Response(PurchaseDetailSerializer(refreshed).data, status=status.HTTP_200_OK)
+        return Response(
+            PurchaseDetailSerializer(refreshed, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from apps.catalog.models import Category, Product, Unit
+from apps.catalog.models import Category, Product, ProductImage, Unit
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -200,12 +200,39 @@ class UnitUpdateSerializer(serializers.Serializer):
         return clean
 
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = [
+            "id",
+            "image",
+            "image_url",
+            "alt_text",
+            "is_primary",
+            "sort_order",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_image_url(self, obj) -> str | None:
+        if not obj.image:
+            return None
+        request = self.context.get("request")
+        if request is not None:
+            return request.build_absolute_uri(obj.image.url)
+        return obj.image.url
+
+
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     category_name_km = serializers.CharField(source="category.name_km", read_only=True)
     unit_name = serializers.CharField(source="unit.name", read_only=True)
     unit_abbreviation = serializers.CharField(source="unit.abbreviation", read_only=True)
     image_url = serializers.SerializerMethodField()
+    images = ProductImageSerializer(many=True, read_only=True)
+    images_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -218,6 +245,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "image",
             "image_url",
+            "images",
+            "images_count",
             "category",
             "category_name",
             "category_name_km",
@@ -236,13 +265,26 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def get_image_url(self, obj) -> str | None:
-        if not obj.image:
+    def _build_url(self, file_field) -> str | None:
+        if not file_field:
             return None
         request = self.context.get("request")
         if request is not None:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+            return request.build_absolute_uri(file_field.url)
+        return file_field.url
+
+    def get_image_url(self, obj) -> str | None:
+        gallery = list(obj.images.all())
+        if gallery:
+            primary = next((img for img in gallery if img.is_primary), gallery[0])
+            return self._build_url(primary.image)
+        return self._build_url(obj.image)
+
+    def get_images_count(self, obj) -> int:
+        gallery_count = len(list(obj.images.all()))
+        if gallery_count > 0:
+            return gallery_count
+        return 1 if obj.image else 0
 
 
 class NullableDecimalField(serializers.DecimalField):
@@ -321,6 +363,12 @@ class ProductUpdateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     image = serializers.ImageField(required=False, allow_null=True)
     remove_image = serializers.BooleanField(required=False, default=False)
+    delete_image_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        default=list,
+    )
+    primary_image_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=False)
     unit = serializers.PrimaryKeyRelatedField(queryset=Unit.objects.all(), required=False)
     purchase_cost = serializers.DecimalField(

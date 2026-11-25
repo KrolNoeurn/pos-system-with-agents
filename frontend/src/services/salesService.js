@@ -10,13 +10,34 @@ export async function fetchCustomers(params = {}) {
   return response.data;
 }
 
+function buildCustomerPayload(payload) {
+  if (payload?.avatar instanceof File) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === "boolean") {
+        formData.append(key, value ? "true" : "false");
+      } else {
+        formData.append(key, value);
+      }
+    });
+    return {
+      body: formData,
+      config: { headers: { "Content-Type": "multipart/form-data" } },
+    };
+  }
+  return { body: payload, config: undefined };
+}
+
 export async function createCustomer(payload) {
-  const response = await apiClient.post("/customers/", payload);
+  const { body, config } = buildCustomerPayload(payload);
+  const response = await apiClient.post("/customers/", body, config);
   return response.data;
 }
 
 export async function updateCustomer(customerId, payload) {
-  const response = await apiClient.patch(`/customers/${customerId}/`, payload);
+  const { body, config } = buildCustomerPayload(payload);
+  const response = await apiClient.patch(`/customers/${customerId}/`, body, config);
   return response.data;
 }
 

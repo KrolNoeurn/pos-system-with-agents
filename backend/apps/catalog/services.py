@@ -9,11 +9,12 @@ from rest_framework import status
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 
 from apps.audit.services import log_audit_event
-from apps.catalog.models import Category, Product, Unit
+from apps.catalog.models import Category, Product, ProductImage, Unit
 
 MONEY_QUANT = Decimal("0.01")
 QTY_QUANT = Decimal("0.001")
 MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+MAX_IMAGES_PER_PRODUCT = 10
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
@@ -541,6 +542,141 @@ def _normalize_barcode(barcode: str | None) -> str | None:
     return clean if clean else None
 
 
+def _schedule_file_delete(file_field) -> None:
+    if not file_field or not getattr(file_field, "name", ""):
+        return
+    storage = file_field.storage
+    name = file_field.name
+
+    def _cleanup():
+        try:
+            storage.delete(name)
+        except Exception:
+            pass
+
+    transaction.on_commit(_cleanup)
+
+
+def _sync_primary_gallery_image(product: Product) -> None:
+    """Ensure product has a single primary gallery image when gallery items exist."""
+    gallery = list(product.images.order_by("-is_primary", "sort_order", "id"))
+    if not gallery:
+        return
+    primaries = [img for img in gallery if img.is_primary]
+    chosen = primaries[0] if primaries else gallery[0]
+    for img in gallery:
+        desired = img.id == chosen.id
+        if img.is_primary != desired:
+            img.is_primary = desired
+            img.save(update_fields=["is_primary"])
+
+
+@transaction.atomic
+def add_product_images(
+    *,
+    actor,
+    product: Product,
+    images: list,
+    ip_address: str | None = None,
+) -> list[ProductImage]:
+    if not images:
+        raise ValidationError({"images": ["Please upload at least one product image."]})
+
+    existing_count = product.images.count()
+    if existing_count + len(images) > MAX_IMAGES_PER_PRODUCT:
+        raise ValidationError(
+            {
+                "images": [
+                    f"A product can have at most {MAX_IMAGES_PER_PRODUCT} images "
+                    f"(currently {existing_count})."
+                ]
+            }
+        )
+
+    for img_file in images:
+        _validate_product_image(img_file)
+
+    has_primary = product.images.filter(is_primary=True).exists()
+    created_items: list[ProductImage] = []
+    start_order = existing_count
+
+    for idx, img_file in enumerate(images):
+        is_primary = not has_primary and idx == 0
+        item = ProductImage.objects.create(
+            product=product,
+            image=img_file,
+            is_primary=is_primary,
+            sort_order=start_order + idx,
+        )
+        created_items.append(item)
+
+    _sync_primary_gallery_image(product)
+
+    log_audit_event(
+        actor=actor,
+        action="product.images_added",
+        target_type="Product",
+        target_id=product.id,
+        ip_address=ip_address,
+        metadata={"sku": product.sku, "added_count": len(created_items)},
+    )
+    return created_items
+
+
+@transaction.atomic
+def set_primary_product_image(
+    *,
+    actor,
+    product: Product,
+    image_id: int,
+    ip_address: str | None = None,
+) -> ProductImage:
+    target = product.images.filter(pk=image_id).first()
+    if target is None:
+        raise ValidationError({"primary_image_id": ["Selected image does not belong to this product."]})
+
+    product.images.exclude(pk=target.pk).filter(is_primary=True).update(is_primary=False)
+    if not target.is_primary:
+        target.is_primary = True
+        target.save(update_fields=["is_primary"])
+
+    log_audit_event(
+        actor=actor,
+        action="product.primary_image_changed",
+        target_type="Product",
+        target_id=product.id,
+        ip_address=ip_address,
+        metadata={"sku": product.sku, "image_id": target.id},
+    )
+    return target
+
+
+@transaction.atomic
+def delete_product_image(
+    *,
+    actor,
+    product: Product,
+    image_id: int,
+    ip_address: str | None = None,
+) -> None:
+    target = product.images.filter(pk=image_id).first()
+    if target is None:
+        raise ValidationError({"image_id": ["Image does not belong to this product."]})
+
+    _schedule_file_delete(target.image)
+    target.delete()
+    _sync_primary_gallery_image(product)
+
+    log_audit_event(
+        actor=actor,
+        action="product.image_deleted",
+        target_type="Product",
+        target_id=product.id,
+        ip_address=ip_address,
+        metadata={"sku": product.sku, "image_id": image_id},
+    )
+
+
 @transaction.atomic
 def create_product(
     *,
@@ -558,6 +694,7 @@ def create_product(
     name_km: str = "",
     description: str = "",
     image=None,
+    images: list | None = None,
     track_inventory: bool = True,
     is_active: bool = True,
     ip_address: str | None = None,
@@ -591,6 +728,14 @@ def create_product(
     clean_min_stock = _validate_quantity(min_stock_threshold, "min_stock_threshold")
     _validate_product_image(image)
 
+    gallery_uploads = list(images or [])
+    if len(gallery_uploads) > MAX_IMAGES_PER_PRODUCT:
+        raise ValidationError(
+            {"images": [f"A product can have at most {MAX_IMAGES_PER_PRODUCT} images."]}
+        )
+    for img_file in gallery_uploads:
+        _validate_product_image(img_file)
+
     product = Product.objects.create(
         sku=clean_sku,
         barcode=clean_barcode,
@@ -609,6 +754,14 @@ def create_product(
         is_active=is_active,
     )
 
+    for idx, img_file in enumerate(gallery_uploads):
+        ProductImage.objects.create(
+            product=product,
+            image=img_file,
+            is_primary=(idx == 0),
+            sort_order=idx,
+        )
+
     log_audit_event(
         actor=actor,
         action="product.created",
@@ -622,6 +775,7 @@ def create_product(
             "purchase_cost": str(product.purchase_cost),
             "selling_price": str(product.selling_price),
             "wholesale_price": str(product.wholesale_price) if product.wholesale_price is not None else None,
+            "gallery_images_count": len(gallery_uploads),
         },
     )
     return product
@@ -641,6 +795,9 @@ def update_product(
     image_provided: bool = False,
     image=None,
     remove_image: bool = False,
+    new_images: list | None = None,
+    delete_image_ids: list[int] | None = None,
+    primary_image_id: int | None = None,
     category: Category | None = None,
     unit: Unit | None = None,
     purchase_cost: Decimal | None = None,
@@ -765,18 +922,70 @@ def update_product(
         updated_fields.append("is_active")
 
     if remove_image and product.image:
-        product.image.delete(save=False)
+        _schedule_file_delete(product.image)
         product.image = None
         updated_fields.append("image")
     elif image_provided and image is not None:
         _validate_product_image(image)
         if product.image:
-            product.image.delete(save=False)
+            _schedule_file_delete(product.image)
         product.image = image
         updated_fields.append("image")
 
+    gallery_changed = False
+    if delete_image_ids:
+        to_delete = list(product.images.filter(id__in=delete_image_ids))
+        for item in to_delete:
+            _schedule_file_delete(item.image)
+            item.delete()
+            gallery_changed = True
+
+    if new_images:
+        existing_count = product.images.count()
+        if existing_count + len(new_images) > MAX_IMAGES_PER_PRODUCT:
+            raise ValidationError(
+                {
+                    "images": [
+                        f"A product can have at most {MAX_IMAGES_PER_PRODUCT} images "
+                        f"(currently {existing_count})."
+                    ]
+                }
+            )
+        for img_file in new_images:
+            _validate_product_image(img_file)
+        has_primary = product.images.filter(is_primary=True).exists()
+        for idx, img_file in enumerate(new_images):
+            ProductImage.objects.create(
+                product=product,
+                image=img_file,
+                is_primary=(not has_primary and idx == 0),
+                sort_order=existing_count + idx,
+            )
+        gallery_changed = True
+
+    if primary_image_id is not None:
+        target_img = product.images.filter(pk=primary_image_id).first()
+        if target_img is None:
+            raise ValidationError(
+                {"primary_image_id": ["Selected primary image does not belong to this product."]}
+            )
+        product.images.exclude(pk=target_img.pk).filter(is_primary=True).update(is_primary=False)
+        if not target_img.is_primary:
+            target_img.is_primary = True
+            target_img.save(update_fields=["is_primary"])
+        gallery_changed = True
+
+    if gallery_changed:
+        _sync_primary_gallery_image(product)
+        if "images" not in updated_fields:
+            updated_fields.append("images")
+
     if updated_fields:
-        product.save(update_fields=[*updated_fields, "updated_at"])
+        save_fields = [f for f in updated_fields if f != "images"]
+        if save_fields:
+            product.save(update_fields=[*save_fields, "updated_at"])
+        else:
+            product.save(update_fields=["updated_at"])
         log_audit_event(
             actor=actor,
             action="product.updated",

@@ -16,6 +16,7 @@ class Customer(models.Model):
     email = models.EmailField(blank=True, default="")
     address = models.TextField(blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    avatar = models.ImageField(upload_to="customers/avatars/%Y/%m/", null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -52,6 +53,10 @@ class Sale(models.Model):
         QR = "qr", "QR / KHQR"
         SPLIT = "split", "Split Payment"
 
+    class DiscountType(models.TextChoices):
+        FIXED = "fixed", "Fixed Cash"
+        PERCENT = "percent", "Percentage"
+
     sale_number = models.CharField(max_length=40, unique=True, db_index=True)
     idempotency_key = models.CharField(
         max_length=80,
@@ -76,6 +81,14 @@ class Sale(models.Model):
     )
 
     subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    item_discount_total = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    order_discount_type = models.CharField(
+        max_length=12,
+        choices=DiscountType.choices,
+        default=DiscountType.FIXED,
+    )
+    order_discount_value = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    order_discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
@@ -183,6 +196,13 @@ class SaleItem(models.Model):
         default=Decimal("0.00"),
     )
     line_subtotal = models.DecimalField(max_digits=14, decimal_places=2)
+    discount_type = models.CharField(
+        max_length=12,
+        choices=Sale.DiscountType.choices,
+        default=Sale.DiscountType.FIXED,
+    )
+    discount_value = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    line_discount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     line_tax = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     line_total = models.DecimalField(max_digits=14, decimal_places=2)
 
@@ -209,6 +229,14 @@ class SaleItem(models.Model):
             models.CheckConstraint(
                 condition=models.Q(line_subtotal__gte=Decimal("0.00")),
                 name="ck_sales_item_line_subtotal_gte_zero",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(discount_value__gte=Decimal("0.00")),
+                name="ck_sales_item_discount_value_gte_zero",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(line_discount__gte=Decimal("0.00")),
+                name="ck_sales_item_line_discount_gte_zero",
             ),
             models.CheckConstraint(
                 condition=models.Q(line_tax__gte=Decimal("0.00")),

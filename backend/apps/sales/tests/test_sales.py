@@ -1,9 +1,14 @@
 """Automated tests for POS Checkout, Sales History, Cancellation, Refunds, Customers, and RBAC."""
 
 from decimal import Decimal
+import io
+import tempfile
 
+from PIL import Image
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -454,3 +459,94 @@ class SalesAndCheckoutAPITestCase(APITestCase):
             ).status_code,
             status.HTTP_403_FORBIDDEN,
         )
+
+    def _make_test_image(self, name: str = "customer.png") -> SimpleUploadedFile:
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 64), color=(40, 199, 111)).save(buf, format="PNG")
+        return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+    def test_customer_profile_avatar_upload_remove_and_default_null(self):
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                self._auth(self.manager)
+
+                # 1. Customer created without avatar returns null avatar_url (frontend renders default avatar)
+                created = self.client.post(
+                    "/api/v1/customers/",
+                    {"name": "Default Avatar Client", "phone": "012888999"},
+                    format="json",
+                )
+                self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+                self.assertIsNone(created.data["avatar_url"])
+                self.assertTrue(created.data["is_active"])
+                cust_id = created.data["id"]
+
+                # 2. Upload avatar via multipart PATCH while preserving is_active=True
+                patched = self.client.patch(
+                    f"/api/v1/customers/{cust_id}/",
+                    {"avatar": self._make_test_image("client1.png")},
+                    format="multipart",
+                )
+                self.assertEqual(patched.status_code, status.HTTP_200_OK)
+                self.assertTrue(patched.data["is_active"])
+                self.assertIsNotNone(patched.data["avatar_url"])
+                self.assertIn("customers/avatars/", patched.data["avatar_url"])
+
+                # 3. Checkout sale for this customer exposes customer_avatar_url
+                sale_resp = self.client.post(
+                    "/api/v1/sales/",
+                    {
+                        "customer": cust_id,
+                        "items": [{"product": self.coffee.id, "quantity": "1"}],
+                        "paid_amount": "5.00",
+                    },
+                    format="json",
+                )
+                self.assertEqual(sale_resp.status_code, status.HTTP_201_CREATED)
+                self.assertEqual(sale_resp.data["customer_avatar_url"], patched.data["avatar_url"])
+
+                # 4. Remove avatar returns customer to default avatar (avatar_url=None)
+                removed = self.client.patch(
+                    f"/api/v1/customers/{cust_id}/",
+                    {"remove_avatar": True},
+                    format="json",
+                )
+                self.assertEqual(removed.status_code, status.HTTP_200_OK)
+                self.assertIsNone(removed.data["avatar_url"])
+
+                # 5. Create customer directly with avatar via multipart POST
+                created_with_avatar = self.client.post(
+                    "/api/v1/customers/",
+                    {
+                        "name": "Photo Client",
+                        "phone": "012777666",
+                        "avatar": self._make_test_image("client2.png"),
+                    },
+                    format="multipart",
+                )
+                self.assertEqual(created_with_avatar.status_code, status.HTTP_201_CREATED)
+                self.assertTrue(created_with_avatar.data["is_active"])
+                self.assertIsNotNone(created_with_avatar.data["avatar_url"])
+
+                # 6. Invalid non-image file rejected
+                bad_file = SimpleUploadedFile("bad.txt", b"not-an-image", content_type="text/plain")
+                bad_resp = self.client.patch(
+                    f"/api/v1/customers/{cust_id}/",
+                    {"avatar": bad_file},
+                    format="multipart",
+                )
+                self.assertEqual(bad_resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_checkout_cors_preflight_allows_idempotency_key_header(self):
+        resp = self.client.options(
+            "/api/v1/sales/",
+            HTTP_ORIGIN="http://localhost:5173",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="authorization,content-type,x-idempotency-key",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.get("Access-Control-Allow-Origin"), "http://localhost:5173")
+        allow_headers = (resp.get("Access-Control-Allow-Headers") or "").lower()
+        self.assertIn("x-idempotency-key", allow_headers)
+        self.assertIn("authorization", allow_headers)
+        self.assertIn("content-type", allow_headers)

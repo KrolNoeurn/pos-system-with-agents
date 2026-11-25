@@ -87,7 +87,9 @@ export default function VerticalLayout() {
             className="d-flex align-items-center gap-2 text-decoration-none text-reset min-w-0"
             title={THEME_CONFIG.appName}
           >
-            <i className="bi bi-shop fs-4 text-primary flex-shrink-0" aria-hidden="true" />
+            <span className="vuexy-brand-mark" aria-hidden="true">
+              <i className="bi bi-shop fs-5" />
+            </span>
             <span className="pos-sidebar-label text-truncate">{THEME_CONFIG.appName}</span>
           </Link>
           <button
@@ -215,7 +217,7 @@ export default function VerticalLayout() {
           <HeaderControls />
         </header>
 
-        <div className="d-md-none px-3 py-2 border-bottom bg-body-tertiary">
+        <div className="d-md-none px-3 pt-2">
           <Breadcrumbs />
         </div>
 
@@ -225,7 +227,7 @@ export default function VerticalLayout() {
           </div>
         </main>
 
-        <footer className="border-top py-3 px-3 px-md-4 small text-body-secondary bg-body-tertiary">
+        <footer className="py-3 px-3 px-md-4 small text-body-secondary">
           <div className="d-flex flex-column flex-sm-row justify-content-between gap-2">
             <span>{THEME_CONFIG.appName}</span>
             <span>{t("app.footerLabel")}</span>
